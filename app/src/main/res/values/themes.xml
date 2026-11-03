@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <color name="nw_background">#FF0B0F1A</color>
+    <color name="nw_surface">#FF151B2B</color>
+    <color name="nw_accent">#FF3B82F6</color>
+    <color name="nw_ic_launcher_background">#FF0B0F1A</color>
+
+    <style name="Theme.NovaWin" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/nw_background</item>
+        <item name="android:statusBarColor">@color/nw_background</item>
+        <item name="android:navigationBarColor">@color/nw_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:colorAccent">@color/nw_accent</item>
+    </style>
+
+    <style name="Theme.NovaWin.Desktop" parent="Theme.NovaWin">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="o_mr1">shortEdges</item>
+    </style>
+</resources>

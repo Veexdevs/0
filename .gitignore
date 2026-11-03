@@ -1,0 +1,28 @@
+# Gradle / Android
+.gradle/
+build/
+app/build/
+local.properties
+*.iml
+.idea/
+captures/
+.cxx/
+
+# Assets produzidos pela CI (não versionar: são grandes e injetados no runner)
+app/src/main/assets/rootfs.tar.gz
+app/src/main/assets/box64
+app/src/main/assets/box86
+app/src/main/jniLibs/
+app/src/main/cpp/third_party/
+
+# Rootfs local (se alguém montar fora da CI)
+rootfs/
+*.tar.gz
+
+# Misc
+.DS_Store
+*.apk
+*.aab
+*.log
+NovaWin.apk
+NovaWin.apk.sha256

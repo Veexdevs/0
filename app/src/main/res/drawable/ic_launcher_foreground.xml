@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ícone NovaWin: janela de aplicativo com o "N" -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FF151B2B"
+        android:pathData="M20,26 h68 a6,6 0 0 1 6,6 v44 a6,6 0 0 1 -6,6 h-68 a6,6 0 0 1 -6,-6 v-44 a6,6 0 0 1 6,-6 z" />
+    <path
+        android:fillColor="#FF3B82F6"
+        android:pathData="M20,26 h68 a6,6 0 0 1 6,6 v8 h-80 v-8 a6,6 0 0 1 6,-6 z" />
+    <path
+        android:fillColor="#FF0B0F1A"
+        android:pathData="M36,48 h8 l14,14 v-14 h8 v28 h-8 l-14,-14 v14 h-8 z" />
+</vector>

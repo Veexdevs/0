@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">NovaWin</string>
+
+    <!-- Tela inicial -->
+    <string name="home_executar_exe">Executar EXE</string>
+    <string name="home_meus_programas">Meus Programas</string>
+    <string name="home_arquivos">Gerenciador de Arquivos</string>
+    <string name="home_configuracoes">Configurações</string>
+    <string name="home_ambiente">Ambiente Windows</string>
+    <string name="home_ambientes">Ambientes</string>
+    <string name="home_recentes">Executados recentemente</string>
+    <string name="home_recentes_vazio">Nenhum programa executado ainda.\nImporte um arquivo .exe para começar.</string>
+
+    <!-- Importação -->
+    <string name="import_titulo">Importar e executar</string>
+    <string name="import_escolher">Escolher arquivo .exe</string>
+    <string name="import_validando">Validando arquivo…</string>
+    <string name="import_configurar">Configurar execução</string>
+    <string name="import_lancar">Iniciar programa</string>
+    <string name="import_ambiente">Ambiente</string>
+    <string name="import_resolucao">Resolução</string>
+    <string name="import_mensagem_exe_invalido">O arquivo selecionado não é um executável Windows (PE) válido.</string>
+    <string name="import_ajudante">O arquivo é copiado para o ambiente selecionado e executado com Wine + Box64.</string>
+
+    <!-- Programas -->
+    <string name="programs_titulo">Meus Programas</string>
+    <string name="programs_vazio">Nenhum programa importado.\nToque em “Executar EXE” na tela inicial para importar um .exe.</string>
+
+    <!-- Arquivos -->
+    <string name="files_titulo">Gerenciador de Arquivos</string>
+    <string name="files_root_c">C:\ (Windows)</string>
+    <string name="files_root_env">Ambiente</string>
+    <string name="files_root_android">Android (SAF)</string>
+    <string name="files_novo_pasta">Nova pasta</string>
+    <string name="files_apagar">Excluir</string>
+    <string name="files_copiar">Copiar</string>
+    <string name="files_mover">Mover</string>
+    <string name="files_importar">Importar para cá</string>
+    <string name="files_escolher_pasta_android">Escolher pasta do Android</string>
+
+    <!-- Configurações -->
+    <string name="settings_titulo">Configurações</string>
+    <string name="settings_video">Vídeo e desempenho</string>
+    <string name="settings_resolucao">Resolução do ambiente</string>
+    <string name="settings_renderizador">Renderizador gráfico (SDL2)</string>
+    <string name="settings_cpu">Núcleos de CPU</string>
+    <string name="settings_box64">Emulação (Box64)</string>
+    <string name="settings_ui">Interface</string>
+    <string name="settings_escala">Escala da interface</string>
+    <string name="settings_touch">Controles de toque</string>
+    <string name="settings_teclado">Teclado</string>
+    <string name="settings_avancado">Avançado</string>
+    <string name="settings_ambientes">Gerenciar ambientes</string>
+
+    <!-- Ambientes -->
+    <string name="envs_titulo">Ambientes Windows</string>
+    <string name="envs_novo">Novo ambiente</string>
+    <string name="envs_nome">Nome</string>
+    <string name="envs_arquitetura">Arquitetura</string>
+    <string name="envs_resolucao">Resolução</string>
+    <string name="envs_memoria">Memória disponível</string>
+    <string name="envs_wine">Versão do Wine</string>
+    <string name="envs_preparando">Preparando prefixo Wine (primeira inicialização)…</string>
+    <string name="envs_apagar">Excluir ambiente</string>
+
+    <!-- Desktop -->
+    <string name="desktop_titulo">Ambiente Windows</string>
+    <string name="desktop_encerar">Encerrar ambiente</string>
+
+    <!-- Status -->
+    <string name="status_preparando">Preparando o ambiente Windows (extração do sistema de execução)…</string>
+    <string name="status_pronto">Ambiente pronto</string>
+    <string name="status_erro_preparacao">Falha ao preparar o ambiente. Verifique o espaço livre em armazenamento.</string>
+    <string name="status_carregando">Carregando…</string>
+    <string name="ok">OK</string>
+    <string name="cancelar">Cancelar</string>
+    <string name="fechar">Fechar</string>
+    <string name="erro_generico">Ocorreu um erro.</string>
+</resources>

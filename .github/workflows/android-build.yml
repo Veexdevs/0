@@ -77,7 +77,7 @@ jobs:
             -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 \
             -DCMAKE_BUILD_TYPE=Release -DANDROID=ON -DARM_DYNAREC=ON -DNOGIT=ON -DCI=ON \
             2>&1 | tee box64-cfg.log || { echo "::error file=.github/workflows/android-build.yml::Box64 configure falhou :: $(tail -c 2500 box64-cfg.log | tr '\n' '|')"; exit 1; }
-          cmake --build box64/build --parallel 2>&1 | tee box64-build.log || { echo "::error file=.github/workflows/android-build.yml::Box64 build falhou :: ERROS=$(grep -m2 -A10 'error:' box64-build.log | tr '\n' '|' | head -c 2200) TAIL=$(tail -c 600 box64-build.log | tr '\n' '|')"; exit 1; }
+          cmake --build box64/build --parallel 2>&1 | tee box64-build.log || { echo "::error file=.github/workflows/android-build.yml::Box64 build falhou :: FAILED=$(grep -m1 -A25 'FAILED:' box64-build.log | tr '\n' '|' | head -c 2600)"; exit 1; }
           mkdir -p runtimes/bin
           cp box64/build/box64 runtimes/bin/box64
 
@@ -96,7 +96,7 @@ jobs:
             -DANDROID_ABI=armeabi-v7a -DANDROID_PLATFORM=android-29 \
             -DCMAKE_BUILD_TYPE=Release -DANDROID=ON -DARM_DYNAREC=ON -DNOGIT=ON \
             2>&1 | tee box86-cfg.log || { echo "::error file=.github/workflows/android-build.yml::Box86 configure falhou :: $(tail -c 2500 box86-cfg.log | tr '\n' '|')"; exit 1; }
-          cmake --build box86/build --parallel 2>&1 | tee box86-build.log || { echo "::error file=.github/workflows/android-build.yml::Box86 build falhou :: ERROS=$(grep -m2 -A10 'error:' box86-build.log | tr '\n' '|' | head -c 2200) TAIL=$(tail -c 600 box86-build.log | tr '\n' '|')"; exit 1; }
+          cmake --build box86/build --parallel 2>&1 | tee box86-build.log || { echo "::error file=.github/workflows/android-build.yml::Box86 build falhou :: FAILED=$(grep -m1 -A25 'FAILED:' box86-build.log | tr '\n' '|' | head -c 2600)"; exit 1; }
           mkdir -p runtimes/bin
           cp box86/build/box86 runtimes/bin/box86
 
@@ -111,7 +111,7 @@ jobs:
             -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 \
             -DCMAKE_BUILD_TYPE=Release -DSDL_SHARED=ON -DSDL_STATIC=OFF \
             2>&1 | tee sdl2-cfg.log || { echo "::error file=.github/workflows/android-build.yml::SDL2 configure falhou :: $(tail -c 2500 sdl2-cfg.log | tr '\n' '|')"; exit 1; }
-          cmake --build sdl2/build --parallel 2>&1 | tee sdl2-build.log || { echo "::error file=.github/workflows/android-build.yml::SDL2 build falhou :: ERROS=$(grep -m2 -A10 'error:' sdl2-build.log | tr '\n' '|' | head -c 2200) TAIL=$(tail -c 600 sdl2-build.log | tr '\n' '|')"; exit 1; }
+          cmake --build sdl2/build --parallel 2>&1 | tee sdl2-build.log || { echo "::error file=.github/workflows/android-build.yml::SDL2 build falhou :: FAILED=$(grep -m1 -A25 'FAILED:' sdl2-build.log | tr '\n' '|' | head -c 2600)"; exit 1; }
           mkdir -p runtimes/sdl2/lib/arm64-v8a runtimes/sdl2/include
           cp sdl2/build/libSDL2.so runtimes/sdl2/lib/arm64-v8a/
           cp sdl2/include/*.h runtimes/sdl2/include/
@@ -131,7 +131,7 @@ jobs:
             -DSDL2TTF_SAMPLES=OFF -DSDL2TTF_VENDORED=ON \
             -DCMAKE_PREFIX_PATH="${{ github.workspace }}/sdl2/build" -DSDL2_DIR="${{ github.workspace }}/sdl2/build" \
             2>&1 | tee sdl2ttf-cfg.log || { echo "::error file=.github/workflows/android-build.yml::SDL2_ttf configure falhou :: $(tail -c 2500 sdl2ttf-cfg.log | tr '\n' '|')"; exit 1; }
-          cmake --build sdl2ttf/build --parallel 2>&1 | tee sdl2ttf-build.log || { echo "::error file=.github/workflows/android-build.yml::SDL2_ttf build falhou :: ERROS=$(grep -m2 -A10 'error:' sdl2ttf-build.log | tr '\n' '|' | head -c 2200) TAIL=$(tail -c 600 sdl2ttf-build.log | tr '\n' '|')"; exit 1; }
+          cmake --build sdl2ttf/build --parallel 2>&1 | tee sdl2ttf-build.log || { echo "::error file=.github/workflows/android-build.yml::SDL2_ttf build falhou :: FAILED=$(grep -m1 -A25 'FAILED:' sdl2ttf-build.log | tr '\n' '|' | head -c 2600)"; exit 1; }
           cp sdl2ttf/build/libSDL2_ttf.so runtimes/sdl2/lib/arm64-v8a/
           cp sdl2ttf/SDL_ttf.h runtimes/sdl2/include/SDL_ttf.h 2>/dev/null \
             || cp sdl2ttf/SDL2_ttf.h runtimes/sdl2/include/SDL_ttf.h

@@ -1,0 +1,335 @@
+# =============================================================================
+# NovaWin — build contínuo
+#
+#   runtimes : compila Box64, Box86, SDL2 e SDL2_ttf para arm64-android (NDK)
+#   rootfs   : cria o rootfs guest x86-64 (Debian 12 + Wine + Xvfb + openbox
+#              + novawin-bridge) com debootstrap, dentro da própria CI
+#   app      : compila o app Android (Kotlin/Compose + núcleo C++ NDK),
+#              embutindo rootfs + emuladores nos assets -> NovaWin.apk
+#   release  : publica o APK no GitHub Release quando há tag v*
+#
+# Gatilhos: push em main, execução manual (Actions), e tags v* (release).
+# =============================================================================
+name: NovaWin Build
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BOX64_REF: v0.4.4
+  BOX86_REF: v0.3.8
+  SDL2_REF: release-2.30.9
+  SDL_TTF_REF: SDL2
+  NDK_VERSION: 27.1.12297006
+  NDK_ZIP: android-ndk-r27c-linux.zip
+  NDK_URL: https://dl.google.com/android/repository/android-ndk-r27c-linux.zip
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1) Runtimes ARM64 (Box64/Box86/SDL2/SDL2_ttf) com Android NDK
+  # ---------------------------------------------------------------------------
+  runtimes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ferramentas
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build cpio unzip
+
+      - name: NDK
+        id: ndk
+        run: |
+          ok=""
+          for i in 1 2 3 4 5; do
+            if curl -fSL --retry 3 --retry-delay 5 --connect-timeout 30 -o ndk.zip "$NDK_URL"; then
+              ok=1; break
+            fi
+            echo "NDK download: tentativa $i/5 falhou, aguardando 15s..."
+            rm -f ndk.zip; sleep 15
+          done
+          if [ -z "$ok" ]; then
+            echo "::error file=.github/workflows/android-build.yml::NDK download falhou apos 5 tentativas"
+            exit 1
+          fi
+          unzip -q ndk.zip || { echo "::error file=.github/workflows/android-build.yml::NDK unzip falhou (zip possivelmente corrompido)"; exit 1; }
+          echo "ndk=$(ls -d ${{ github.workspace }}/android-ndk-r27c)" >> "$GITHUB_OUTPUT"
+
+      - name: Box64 (arm64-android)
+        env:
+          NDK_ROOT: ${{ github.workspace }}/android-ndk-r27c
+        run: |
+          set -o pipefail
+          git clone --depth 1 --branch "$BOX64_REF" https://github.com/ptitSeb/box64
+          cmake -S box64 -B box64/build -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$NDK_ROOT/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 \
+            -DCMAKE_BUILD_TYPE=Release -DANDROID=ON -DARM_DYNAREC=ON -DNOGIT=ON -DCI=ON \
+            2>&1 | tee box64-cfg.log || { echo "::error file=.github/workflows/android-build.yml::Box64 configure falhou (veja box64-cfg.log)"; tail -60 box64-cfg.log; tail -40 box64/build/CMakeFiles/CMakeError.log 2>/dev/null; exit 1; }
+          cmake --build box64/build --parallel 2>&1 | tee box64-build.log || { tail -60 box64-build.log | head -c 3000 > /tmp/e.txt; echo "::error file=.github/workflows/android-build.yml::Box64 build falhou:"; cat /tmp/e.txt; exit 1; }
+          mkdir -p runtimes/bin
+          cp box64/build/box64 runtimes/bin/box64
+
+      - name: Box86 (arm64-android)
+        env:
+          NDK_ROOT: ${{ github.workspace }}/android-ndk-r27c
+        run: |
+          set -o pipefail
+          git clone --depth 1 --branch "$BOX86_REF" https://github.com/ptitSeb/box86
+          # patch compat: numeros de syscall x86 32-bits + struct stat64 ausentes em hosts 64-bits
+          patch -p1 -d box86 < patches/box86-android-64host.patch || { echo "::error file=.github/workflows/android-build.yml::Box86 patch de compatibilidade falhou"; exit 1; }
+          cmake -S box86 -B box86/build -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$NDK_ROOT/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 \
+            -DCMAKE_BUILD_TYPE=Release -DANDROID=ON -DARM_DYNAREC=ON -DNOGIT=ON \
+            2>&1 | tee box86-cfg.log || { echo "::error file=.github/workflows/android-build.yml::Box86 configure falhou"; tail -60 box86-cfg.log; tail -40 box86/build/CMakeFiles/CMakeError.log 2>/dev/null; exit 1; }
+          cmake --build box86/build --parallel 2>&1 | tee box86-build.log || { tail -60 box86-build.log | head -c 3000 > /tmp/e.txt; echo "::error file=.github/workflows/android-build.yml::Box86 build falhou:"; cat /tmp/e.txt; exit 1; }
+          mkdir -p runtimes/bin
+          cp box86/build/box86 runtimes/bin/box86
+
+      - name: SDL2 (arm64-android)
+        env:
+          NDK_ROOT: ${{ github.workspace }}/android-ndk-r27c
+        run: |
+          set -o pipefail
+          git clone --depth 1 --branch "$SDL2_REF" https://github.com/libsdl-org/SDL sdl2
+          cmake -S sdl2 -B sdl2/build -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$NDK_ROOT/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 \
+            -DCMAKE_BUILD_TYPE=Release -DSDL_SHARED=ON -DSDL_STATIC=OFF \
+            2>&1 | tee sdl2-cfg.log || { echo "::error file=.github/workflows/android-build.yml::SDL2 configure falhou"; tail -60 sdl2-cfg.log; exit 1; }
+          cmake --build sdl2/build --parallel 2>&1 | tee sdl2-build.log || { tail -60 sdl2-build.log | head -c 3000 > /tmp/e.txt; echo "::error file=.github/workflows/android-build.yml::SDL2 build falhou:"; cat /tmp/e.txt; exit 1; }
+          mkdir -p runtimes/sdl2/lib/arm64-v8a runtimes/sdl2/include
+          cp sdl2/build/libSDL2.so runtimes/sdl2/lib/arm64-v8a/
+          cp sdl2/include/*.h runtimes/sdl2/include/
+
+      - name: SDL2_ttf (arm64-android, freetype embutido)
+        env:
+          NDK_ROOT: ${{ github.workspace }}/android-ndk-r27c
+        run: |
+          set -o pipefail
+          git clone --depth 1 --branch "$SDL_TTF_REF" \
+            --recurse-submodules --shallow-submodules \
+            https://github.com/libsdl-org/SDL_ttf sdl2ttf
+          cmake -S sdl2ttf -B sdl2ttf/build -G Ninja \
+            -DCMAKE_TOOLCHAIN_FILE="$NDK_ROOT/build/cmake/android.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSDL2TTF_SAMPLES=OFF -DSDL2TTF_VENDORED=ON \
+            2>&1 | tee sdl2ttf-cfg.log || { echo "::error file=.github/workflows/android-build.yml::SDL2_ttf configure falhou"; tail -60 sdl2ttf-cfg.log; exit 1; }
+          cmake --build sdl2ttf/build --parallel 2>&1 | tee sdl2ttf-build.log || { tail -60 sdl2ttf-build.log | head -c 3000 > /tmp/e.txt; echo "::error file=.github/workflows/android-build.yml::SDL2_ttf build falhou:"; cat /tmp/e.txt; exit 1; }
+          cp sdl2ttf/build/libSDL2_ttf.so runtimes/sdl2/lib/arm64-v8a/
+          cp sdl2ttf/SDL_ttf.h runtimes/sdl2/include/SDL_ttf.h 2>/dev/null \
+            || cp sdl2ttf/SDL2_ttf.h runtimes/sdl2/include/SDL_ttf.h
+
+      - name: Versões
+        run: |
+          file runtimes/bin/box64 runtimes/bin/box86 runtimes/sdl2/lib/arm64-v8a/*.so
+          ls -laR runtimes
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtimes-arm64
+          path: runtimes
+
+  # ---------------------------------------------------------------------------
+  # 2) RootFS guest x86-64 (Debian 12 + Wine + Xvfb + openbox + bridge)
+  # ---------------------------------------------------------------------------
+  rootfs:
+    runs-on: ubuntu-latest
+    needs: runtimes
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: runtimes-arm64
+          path: runtimes
+
+      - name: debootstrap
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y debootstrap ca-certificates
+          debootstrap --variant=minbase --arch=amd64 bookworm rootfs
+
+      - name: Instala Wine, X11 e compila o bridge (chroot)
+        run: |
+          mkdir -p rootfs/tmp
+          cp native/guest/novawin-bridge.c rootfs/tmp/novawin-bridge.c
+          chroot rootfs /bin/sh -c '
+            set -e
+            export DEBIAN_FRONTEND=noninteractive
+            apt-get update
+            apt-get install -y --no-install-recommends ca-certificates wget locales
+            sed -i "s/^# *en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/" /etc/locale.gen || true
+            locale-gen || true
+
+            # --- Wine (WineHQ wine-stable; fallback: wine64/wine32 do Debian) ---
+            mkdir -p /usr/share/keyrings /etc/apt/sources.list.d
+            printf 'Types: deb\nURIs: https://dl.winehq.org/wine-builds/debian/\nSuites: bookworm\nComponents: main\nArchitectures: amd64\nSigned-By: /usr/share/keyrings/winehq-archive.key\n' > /etc/apt/sources.list.d/winehq-bookworm.sources
+            WINE_OK=1
+            if wget -qO /usr/share/keyrings/winehq-archive.key \
+                   https://dl.winehq.org/wine-builds/winehq.key; then
+              apt-get update || WINE_OK=0
+              apt-get install -y --install-recommends wine-stable || WINE_OK=0
+            fi
+            if [ "$WINE_OK" != "1" ] || [ ! -x /usr/bin/wine64 ]; then
+              echo ">> WineHQ falhou; usando wine do Debian"
+              apt-get update
+              apt-get install -y --no-install-recommends wine64
+            fi
+            # wine32 (melhor esforço: habilita 32 bits via Box86)
+            dpkg --add-architecture i386 || true
+            apt-get update || true
+            (apt-get install -y --no-install-recommends wine32:i386 \
+               || apt-get install -y --no-install-recommends wine32 \
+               || echo ">> wine32 indisponível; ambientes ficarão 64 bits") || true
+
+            # --- X11 / WM / fontes ---
+            apt-get install -y --no-install-recommends \
+              xvfb openbox x11-xserver-utils xkb-data fontconfig \
+              ttf-dejavu-core ttf-liberation
+
+            # --- build do bridge ---
+            apt-get install -y --no-install-recommends \
+              gcc libc6-dev libx11-dev libxtst-dev
+            gcc -O2 -o /usr/local/bin/novawin-bridge /tmp/novawin-bridge.c -lX11 -lXtst
+            rm -f /tmp/novawin-bridge.c
+
+            # remove ferramentas de build (tamanho do rootfs)
+            apt-get purge -y gcc libc6-dev libx11-dev libxtst-dev || true
+            apt-get clean
+            rm -rf /var/lib/apt/lists/*
+          ' 2>&1 | tail -40
+
+      - name: Instala emuladores, sessão e marcadores
+        run: |
+          cp runtimes/bin/box64 runtimes/bin/box86 rootfs/usr/local/bin/
+          chmod 755 rootfs/usr/local/bin/box64 rootfs/usr/local/bin/box86
+          cp native/guest/novawin-session.sh rootfs/usr/local/bin/
+          chmod 755 rootfs/usr/local/bin/novawin-session.sh
+          mkdir -p rootfs/.novawin
+          chroot rootfs wine64 --version 2>/dev/null | head -1 > rootfs/.novawin/wine_version \
+            || echo "desconhecida" > rootfs/.novawin/wine_version
+          if chroot rootfs sh -c 'command -v wine32' >/dev/null 2>&1; then
+            echo 1 > rootfs/.novawin/wine32
+          fi
+          echo 1 > rootfs/.novawin/ready
+          cat rootfs/.novawin/wine_version
+
+      - name: Empacota rootfs
+        run: |
+          tar -C rootfs -czf rootfs.tar.gz .
+          ls -la rootfs.tar.gz
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rootfs
+          path: rootfs.tar.gz
+
+  # ---------------------------------------------------------------------------
+  # 3) App Android -> NovaWin.apk
+  # ---------------------------------------------------------------------------
+  app:
+    runs-on: ubuntu-latest
+    needs: [ runtimes, rootfs ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: runtimes-arm64
+          path: runtimes
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: rootfs
+          path: rootfs-artifact
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools: 11076708
+
+      - name: Componentes SDK
+        run: |
+          yes | sdkmanager --licenses > /dev/null
+          sdkmanager "platforms;android-35" "build-tools;35.0.0" \
+            "ndk;$NDK_VERSION" "cmake;3.22.1"
+
+      - name: Injeta runtimes e rootfs no projeto
+        run: |
+          mkdir -p app/src/main/assets
+          cp rootfs-artifact/rootfs.tar.gz app/src/main/assets/rootfs.tar.gz
+          cp runtimes/bin/box64 runtimes/bin/box86 app/src/main/assets/
+          # SDL2 para o build NDK do núcleo
+          mkdir -p app/src/main/cpp/third_party/sdl2/include
+          mkdir -p app/src/main/cpp/third_party/sdl2/lib/arm64-v8a
+          cp runtimes/sdl2/include/*.h app/src/main/cpp/third_party/sdl2/include/
+          cp runtimes/sdl2/lib/arm64-v8a/*.so app/src/main/cpp/third_party/sdl2/lib/arm64-v8a/
+          # .so empacotados no APK
+          mkdir -p app/src/main/jniLibs/arm64-v8a
+          cp runtimes/sdl2/lib/arm64-v8a/libSDL2.so app/src/main/jniLibs/arm64-v8a/
+          cp runtimes/sdl2/lib/arm64-v8a/libSDL2_ttf.so app/src/main/jniLibs/arm64-v8a/
+          ls -la app/src/main/assets
+
+      - name: Build do APK
+        run: |
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Nomeia e publica artefato
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk NovaWin.apk
+          ls -la NovaWin.apk
+          sha256sum NovaWin.apk > NovaWin.apk.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NovaWin
+          path: |
+            NovaWin.apk
+            NovaWin.apk.sha256
+
+  # ---------------------------------------------------------------------------
+  # 4) Release (apenas com tag v*)
+  # ---------------------------------------------------------------------------
+  release:
+    runs-on: ubuntu-latest
+    needs: app
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: NovaWin
+          path: release
+
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/NovaWin.apk
+            release/NovaWin.apk.sha256
+          name: NovaWin ${{ github.ref_name }}
+          body: |
+            NovaWin — Windows no Android (Wine + Box64/Box86 + SDL2).
+
+            Instalação: habilite "fontes desconhecidas" e instale `NovaWin.apk`.
+            Na primeira execução, prepare o ambiente na tela inicial.

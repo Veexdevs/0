@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- O NovaWin não requer permissões de armazenamento: tudo acontece no
+         diretório privado do app; arquivos do usuário são acessados via SAF
+         (Storage Access Framework), mecanismo oficial do Android. -->
+
+    <uses-feature
+        android:glEsVersion="0x00020000"
+        android:required="true" />
+
+    <application
+        android:name=".NovaWinApp"
+        android:allowBackup="true"
+        android:hardwareAccelerated="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.NovaWin"
+        android:largeHeap="true"
+        tools:targetApi="35">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
+            android:theme="@style/Theme.NovaWin">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Ambiente Windows: janela SDL2 em tela cheia (desktop do guest X11) -->
+        <activity
+            android:name=".desktop.NovaWinDesktopActivity"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|screenLayout|uiMode|locale|density"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="stateHidden|adjustResize"
+            android:theme="@style/Theme.NovaWin.Desktop" />
+
+    </application>
+
+</manifest>

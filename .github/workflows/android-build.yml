@@ -353,7 +353,8 @@ jobs:
         run: |
           set -o pipefail
           # localiza o apk em qualquer subpasta de outputs (nome pode variar)
-          APK=$(find app/build/outputs -name "*.apk" -type f 2>/dev/null | head -1)
+          # -print -quit evita pipe (find|head gera SIGPIPE=141 sob pipefail+errexit)
+          APK=$(find app/build/outputs -name "*.apk" -type f -print -quit 2>/dev/null)
           if [ -z "$APK" ]; then
             echo "::error file=.github/workflows/android-build.yml::Nenhum APK em app/build/outputs :: $(find app/build -name '*.apk' 2>/dev/null | tr '\n' '|') DISK=$(df -h . | tail -1 | tr -s ' ')"
             exit 1

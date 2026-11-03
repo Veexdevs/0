@@ -349,7 +349,15 @@ jobs:
 
       - name: Nomeia e publica artefato
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk NovaWin.apk
+          set -o pipefail
+          # localiza o apk em qualquer subpasta de outputs (nome pode variar)
+          APK=$(find app/build/outputs -name "*.apk" -type f 2>/dev/null | head -1)
+          if [ -z "$APK" ]; then
+            echo "::error file=.github/workflows/android-build.yml::Nenhum APK em app/build/outputs :: $(find app/build -name '*.apk' 2>/dev/null | tr '\n' '|') DISK=$(df -h . | tail -1 | tr -s ' ')"
+            exit 1
+          fi
+          echo "APK encontrado: $APK"
+          cp "$APK" NovaWin.apk || { echo "::error file=.github/workflows/android-build.yml::cp do APK falhou :: DISK=$(df -h . | tail -1 | tr -s ' ')"; exit 1; }
           ls -la NovaWin.apk
           sha256sum NovaWin.apk > NovaWin.apk.sha256
 

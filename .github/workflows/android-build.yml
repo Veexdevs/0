@@ -181,7 +181,7 @@ jobs:
           set -o pipefail
           sudo apt-get update
           sudo apt-get install -y debootstrap ca-certificates
-          debootstrap --variant=minbase --arch=amd64 bookworm rootfs 2>&1 | tee debootstrap.log || { echo "::error file=.github/workflows/android-build.yml::debootstrap falhou :: $(tail -c 3000 debootstrap.log | tr '\n' '|')"; exit 1; }
+          sudo debootstrap --variant=minbase --arch=amd64 bookworm rootfs 2>&1 | tee debootstrap.log || { echo "::error file=.github/workflows/android-build.yml::debootstrap falhou :: $(tail -c 3000 debootstrap.log | tr '\n' '|')"; exit 1; }
 
       - name: Instala Wine, X11 e compila o bridge (chroot)
         run: |

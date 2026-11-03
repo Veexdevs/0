@@ -145,7 +145,7 @@ jobs:
           ls -laR runtimes
 
       - name: Logs (diagnostico)
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: runtimes-logs
@@ -294,33 +294,17 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Android SDK
-        run: |
-          # runner ubuntu-latest ja vem com SDK em ANDROID_SDK_ROOT — usamos ele
-          # (definir ANDROID_HOME com outro path faz o AGP falhar: "duas localizacoes")
-          SDKROOT="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
-          echo "SDK em: $SDKROOT"
-          ls "$SDKROOT" | head -5
-          SM=$(find "$SDKROOT/cmdline-tools" -name sdkmanager -type f -print -quit 2>/dev/null || true)
-          if [ -z "$SM" ]; then
-            echo "::error file=.github/workflows/android-build.yml::sdkmanager nao encontrado em $SDKROOT/cmdline-tools"
-            exit 1
-          fi
-          echo "SM=$SM" >> "$GITHUB_ENV"
-          echo "SDKROOT=$SDKROOT" >> "$GITHUB_ENV"
-
-      - name: Componentes SDK
-        run: |
-          set -o pipefail
-          rc=0
-          yes | "$SM" --licenses > sdk-licenses.log 2>&1 || rc=$?
-          if [ "$rc" -ne 0 ]; then
-            echo "::error file=.github/workflows/android-build.yml::sdkmanager --licenses falhou (rc=$rc) :: $(tail -c 1500 sdk-licenses.log | tr '\n' '|')"
-            exit 1
-          fi
-          "$SM" "platforms;android-35" "build-tools;35.0.0" "ndk;$NDK_VERSION" "cmake;3.22.1" > sdkmanager.log 2>&1 \
-            || { echo "::error file=.github/workflows/android-build.yml::sdkmanager componentes falhou :: $(tail -c 2000 sdkmanager.log | tr '\n' '|')"; exit 1; }
-          echo "componentes ok"
+      - name: Android SDK (preinstalado no runner)
+        uses: actions/setup-android@v3
+        with:
+          sdk-licenses: |
+            android-sdk-license
+            android-sdk-preview-license
+          packages: |
+            platforms;android-35
+            build-tools;35.0.0
+            ndk;27.1.12297006
+            cmake;3.22.1
 
       - name: Injeta runtimes e rootfs no projeto
         run: |
@@ -371,7 +355,7 @@ jobs:
           sha256sum NovaWin.apk > NovaWin.apk.sha256
 
       - name: Logs (diagnostico)
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: app-logs

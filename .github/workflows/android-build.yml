@@ -342,6 +342,8 @@ jobs:
           cp runtimes/sdl2/lib/arm64-v8a/libSDL2.so app/src/main/jniLibs/arm64-v8a/
           cp runtimes/sdl2/lib/arm64-v8a/libSDL2_ttf.so app/src/main/jniLibs/arm64-v8a/
           ls -la app/src/main/assets
+          # libera ~700MB+ apos copiar o rootfs para os assets
+          rm -rf rootfs-artifact
 
       - name: Build do APK
         run: |

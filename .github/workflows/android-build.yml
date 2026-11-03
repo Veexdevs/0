@@ -347,14 +347,25 @@ jobs:
 
       - name: Build do APK
         run: |
-          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee gradle-build.log | tail -30 || { echo "::error file=.github/workflows/android-build.yml::Gradle assembleDebug falhou :: $(grep -m1 -B2 -A15 'FAILURE\|error:' gradle-build.log | tr '\n' '|' | head -c 3000)"; exit 1; }
+          ./gradlew assembleDebug --no-daemon --stacktrace > gradle-build.log 2>&1
+          rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo "::error file=.github/workflows/android-build.yml::Gradle assembleDebug falhou (rc=$rc) :: $(grep -m2 -A12 'FAILURE\|error:' gradle-build.log | tr '\n' '|' | head -c 2500)"
+            exit 1
+          fi
+          APK=$(find app/build/outputs -name "*.apk" -type f -print -quit 2>/dev/null || true)
+          if [ -z "$APK" ]; then
+            echo "::error file=.github/workflows/android-build.yml::Gradle terminou 0 mas NAO gerou APK :: $(tail -c 2500 gradle-build.log | tr '\n' '|')"
+            exit 1
+          fi
+          echo "APK gerado: $APK"
 
       - name: Nomeia e publica artefato
         run: |
           set -o pipefail
           # localiza o apk em qualquer subpasta de outputs (nome pode variar)
           # -print -quit evita pipe (find|head gera SIGPIPE=141 sob pipefail+errexit)
-          APK=$(find app/build/outputs -name "*.apk" -type f -print -quit 2>/dev/null)
+          APK=$(find app/build/outputs -name "*.apk" -type f -print -quit 2>/dev/null || true)
           if [ -z "$APK" ]; then
             echo "::error file=.github/workflows/android-build.yml::Nenhum APK em app/build/outputs :: $(find app/build -name '*.apk' 2>/dev/null | tr '\n' '|') DISK=$(df -h . | tail -1 | tr -s ' ')"
             exit 1

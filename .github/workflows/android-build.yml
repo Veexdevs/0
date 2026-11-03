@@ -50,8 +50,19 @@ jobs:
       - name: NDK
         id: ndk
         run: |
-          curl -fSL -o ndk.zip "$NDK_URL"
-          unzip -q ndk.zip
+          ok=""
+          for i in 1 2 3 4 5; do
+            if curl -fSL --retry 3 --retry-delay 5 --connect-timeout 30 -o ndk.zip "$NDK_URL"; then
+              ok=1; break
+            fi
+            echo "NDK download: tentativa $i/5 falhou, aguardando 15s..."
+            rm -f ndk.zip; sleep 15
+          done
+          if [ -z "$ok" ]; then
+            echo "::error file=.github/workflows/android-build.yml::NDK download falhou apos 5 tentativas"
+            exit 1
+          fi
+          unzip -q ndk.zip || { echo "::error file=.github/workflows/android-build.yml::NDK unzip falhou (zip possivelmente corrompido)"; exit 1; }
           echo "ndk=$(ls -d ${{ github.workspace }}/android-ndk-r27c)" >> "$GITHUB_OUTPUT"
 
       - name: Box64 (arm64-android)

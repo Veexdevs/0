@@ -63,6 +63,7 @@ jobs:
             exit 1
           fi
           unzip -q ndk.zip || { echo "::error file=.github/workflows/android-build.yml::NDK unzip falhou (zip possivelmente corrompido)"; exit 1; }
+          rm -f ndk.zip
           echo "ndk=$(ls -d ${{ github.workspace }}/android-ndk-r27c)" >> "$GITHUB_OUTPUT"
 
       - name: Box64 (arm64-android)
@@ -75,8 +76,8 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$NDK_ROOT/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 \
             -DCMAKE_BUILD_TYPE=Release -DANDROID=ON -DARM_DYNAREC=ON -DNOGIT=ON -DCI=ON \
-            2>&1 | tee box64-cfg.log || { echo "::error file=.github/workflows/android-build.yml::Box64 configure falhou (veja box64-cfg.log)"; tail -60 box64-cfg.log; tail -40 box64/build/CMakeFiles/CMakeError.log 2>/dev/null; exit 1; }
-          cmake --build box64/build --parallel 2>&1 | tee box64-build.log || { tail -60 box64-build.log | head -c 3000 > /tmp/e.txt; echo "::error file=.github/workflows/android-build.yml::Box64 build falhou:"; cat /tmp/e.txt; exit 1; }
+            2>&1 | tee box64-cfg.log || { echo "::error file=.github/workflows/android-build.yml::Box64 configure falhou :: $(tail -c 2500 box64-cfg.log | tr '\n' '|')"; exit 1; }
+          cmake --build box64/build --parallel 2>&1 | tee box64-build.log || { echo "::error file=.github/workflows/android-build.yml::Box64 build falhou :: FAILED=$(grep -m1 -A25 'FAILED:' box64-build.log | tr '\n' '|' | head -c 2600)"; exit 1; }
           mkdir -p runtimes/bin
           cp box64/build/box64 runtimes/bin/box64
 
@@ -86,14 +87,16 @@ jobs:
         run: |
           set -o pipefail
           git clone --depth 1 --branch "$BOX86_REF" https://github.com/ptitSeb/box86
-          # patch compat: numeros de syscall x86 32-bits + struct stat64 ausentes em hosts 64-bits
-          patch -p1 -d box86 < patches/box86-android-64host.patch || { echo "::error file=.github/workflows/android-build.yml::Box86 patch de compatibilidade falhou"; exit 1; }
+          # patch compat: numeros de syscall x86-32 + struct stat64 em hosts nao-i386
+          patch -p1 -d box86 < patches/box86-android.patch || { echo "::error file=.github/workflows/android-build.yml::Box86 patch de compatibilidade falhou"; exit 1; }
+          # box86 nao suporta aarch64 como host (nao tem dynarec a64) -> build ARM 32-bits
+          # (armeabi-v7a roda em devices arm64 via loader 32-bits do Android, como no Winlator)
           cmake -S box86 -B box86/build -G Ninja \
             -DCMAKE_TOOLCHAIN_FILE="$NDK_ROOT/build/cmake/android.toolchain.cmake" \
-            -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 \
+            -DANDROID_ABI=armeabi-v7a -DANDROID_PLATFORM=android-29 \
             -DCMAKE_BUILD_TYPE=Release -DANDROID=ON -DARM_DYNAREC=ON -DNOGIT=ON \
-            2>&1 | tee box86-cfg.log || { echo "::error file=.github/workflows/android-build.yml::Box86 configure falhou"; tail -60 box86-cfg.log; tail -40 box86/build/CMakeFiles/CMakeError.log 2>/dev/null; exit 1; }
-          cmake --build box86/build --parallel 2>&1 | tee box86-build.log || { tail -60 box86-build.log | head -c 3000 > /tmp/e.txt; echo "::error file=.github/workflows/android-build.yml::Box86 build falhou:"; cat /tmp/e.txt; exit 1; }
+            2>&1 | tee box86-cfg.log || { echo "::error file=.github/workflows/android-build.yml::Box86 configure falhou :: $(tail -c 2500 box86-cfg.log | tr '\n' '|')"; exit 1; }
+          cmake --build box86/build --parallel 2>&1 | tee box86-build.log || { echo "::error file=.github/workflows/android-build.yml::Box86 build falhou :: FAILED=$(grep -m1 -A25 'FAILED:' box86-build.log | tr '\n' '|' | head -c 2600)"; exit 1; }
           mkdir -p runtimes/bin
           cp box86/build/box86 runtimes/bin/box86
 
@@ -107,8 +110,8 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$NDK_ROOT/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 \
             -DCMAKE_BUILD_TYPE=Release -DSDL_SHARED=ON -DSDL_STATIC=OFF \
-            2>&1 | tee sdl2-cfg.log || { echo "::error file=.github/workflows/android-build.yml::SDL2 configure falhou"; tail -60 sdl2-cfg.log; exit 1; }
-          cmake --build sdl2/build --parallel 2>&1 | tee sdl2-build.log || { tail -60 sdl2-build.log | head -c 3000 > /tmp/e.txt; echo "::error file=.github/workflows/android-build.yml::SDL2 build falhou:"; cat /tmp/e.txt; exit 1; }
+            2>&1 | tee sdl2-cfg.log || { echo "::error file=.github/workflows/android-build.yml::SDL2 configure falhou :: $(tail -c 2500 sdl2-cfg.log | tr '\n' '|')"; exit 1; }
+          cmake --build sdl2/build --parallel 2>&1 | tee sdl2-build.log || { echo "::error file=.github/workflows/android-build.yml::SDL2 build falhou :: FAILED=$(grep -m1 -A25 'FAILED:' sdl2-build.log | tr '\n' '|' | head -c 2600)"; exit 1; }
           mkdir -p runtimes/sdl2/lib/arm64-v8a runtimes/sdl2/include
           cp sdl2/build/libSDL2.so runtimes/sdl2/lib/arm64-v8a/
           cp sdl2/include/*.h runtimes/sdl2/include/
@@ -126,8 +129,9 @@ jobs:
             -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 \
             -DCMAKE_BUILD_TYPE=Release \
             -DSDL2TTF_SAMPLES=OFF -DSDL2TTF_VENDORED=ON \
-            2>&1 | tee sdl2ttf-cfg.log || { echo "::error file=.github/workflows/android-build.yml::SDL2_ttf configure falhou"; tail -60 sdl2ttf-cfg.log; exit 1; }
-          cmake --build sdl2ttf/build --parallel 2>&1 | tee sdl2ttf-build.log || { tail -60 sdl2ttf-build.log | head -c 3000 > /tmp/e.txt; echo "::error file=.github/workflows/android-build.yml::SDL2_ttf build falhou:"; cat /tmp/e.txt; exit 1; }
+            -DCMAKE_PREFIX_PATH="${{ github.workspace }}/sdl2/build" -DSDL2_DIR="${{ github.workspace }}/sdl2/build" \
+            2>&1 | tee sdl2ttf-cfg.log || { echo "::error file=.github/workflows/android-build.yml::SDL2_ttf configure falhou :: $(tail -c 2500 sdl2ttf-cfg.log | tr '\n' '|')"; exit 1; }
+          cmake --build sdl2ttf/build --parallel 2>&1 | tee sdl2ttf-build.log || { echo "::error file=.github/workflows/android-build.yml::SDL2_ttf build falhou :: FAILED=$(grep -m1 -A25 'FAILED:' sdl2ttf-build.log | tr '\n' '|' | head -c 2600)"; exit 1; }
           cp sdl2ttf/build/libSDL2_ttf.so runtimes/sdl2/lib/arm64-v8a/
           cp sdl2ttf/SDL_ttf.h runtimes/sdl2/include/SDL_ttf.h 2>/dev/null \
             || cp sdl2ttf/SDL2_ttf.h runtimes/sdl2/include/SDL_ttf.h
@@ -136,6 +140,19 @@ jobs:
         run: |
           file runtimes/bin/box64 runtimes/bin/box86 runtimes/sdl2/lib/arm64-v8a/*.so
           ls -laR runtimes
+
+      - name: Logs (diagnostico)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtimes-logs
+          if-no-files-found: ignore
+          path: |
+            *.log
+            box64/build/CMakeFiles/CMakeError.log
+            box86/build/CMakeFiles/CMakeError.log
+            sdl2/build/CMakeFiles/CMakeError.log
+            sdl2ttf/build/CMakeFiles/CMakeError.log
 
       - uses: actions/upload-artifact@v4
         with:
@@ -158,9 +175,10 @@ jobs:
 
       - name: debootstrap
         run: |
+          set -o pipefail
           sudo apt-get update
           sudo apt-get install -y debootstrap ca-certificates
-          debootstrap --variant=minbase --arch=amd64 bookworm rootfs
+          debootstrap --variant=minbase --arch=amd64 bookworm rootfs 2>&1 | tee debootstrap.log || { echo "::error file=.github/workflows/android-build.yml::debootstrap falhou :: $(tail -c 3000 debootstrap.log | tr '\n' '|')"; exit 1; }
 
       - name: Instala Wine, X11 e compila o bridge (chroot)
         run: |
@@ -181,7 +199,7 @@ jobs:
             if wget -qO /usr/share/keyrings/winehq-archive.key \
                    https://dl.winehq.org/wine-builds/winehq.key; then
               apt-get update || WINE_OK=0
-              apt-get install -y --install-recommends wine-stable || WINE_OK=0
+              apt-get install -y --no-install-recommends wine-stable || WINE_OK=0
             fi
             if [ "$WINE_OK" != "1" ] || [ ! -x /usr/bin/wine64 ]; then
               echo ">> WineHQ falhou; usando wine do Debian"
@@ -210,7 +228,7 @@ jobs:
             apt-get purge -y gcc libc6-dev libx11-dev libxtst-dev || true
             apt-get clean
             rm -rf /var/lib/apt/lists/*
-          ' 2>&1 | tail -40
+          ' 2>&1 | tee rootfs-install.log | tail -40 || { echo "::error file=.github/workflows/android-build.yml::Install rootfs (wine/x11/bridge) falhou :: $(tail -c 4000 rootfs-install.log | tr '\n' '|')"; exit 1; }
 
       - name: Instala emuladores, sessão e marcadores
         run: |
@@ -231,6 +249,15 @@ jobs:
         run: |
           tar -C rootfs -czf rootfs.tar.gz .
           ls -la rootfs.tar.gz
+
+      - name: Logs (diagnostico)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rootfs-logs
+          if-no-files-found: ignore
+          path: |
+            *.log
 
       - uses: actions/upload-artifact@v4
         with:
@@ -291,13 +318,23 @@ jobs:
 
       - name: Build do APK
         run: |
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee gradle-build.log | tail -30 || { echo "::error file=.github/workflows/android-build.yml::Gradle assembleDebug falhou :: $(grep -m1 -B2 -A15 'FAILURE\|error:' gradle-build.log | tr '\n' '|' | head -c 3000)"; exit 1; }
 
       - name: Nomeia e publica artefato
         run: |
           cp app/build/outputs/apk/debug/app-debug.apk NovaWin.apk
           ls -la NovaWin.apk
           sha256sum NovaWin.apk > NovaWin.apk.sha256
+
+      - name: Logs (diagnostico)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-logs
+          if-no-files-found: ignore
+          path: |
+            *.log
+            app/build/outputs
 
       - uses: actions/upload-artifact@v4
         with:

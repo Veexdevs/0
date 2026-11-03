@@ -296,36 +296,31 @@ jobs:
 
       - name: Android SDK
         run: |
-          set -o pipefail
-          export ANDROID_HOME="${{ github.workspace }}/android-sdk"
-          mkdir -p "$ANDROID_HOME/cmdline-tools"
-          curl -fSL --retry 3 -o /tmp/cmdtools.zip "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" || { echo "::error file=.github/workflows/android-build.yml::Download cmdline-tools falhou"; exit 1; }
-          unzip -q /tmp/cmdtools.zip -d /tmp/sdktmp || { echo "::error file=.github/workflows/android-build.yml::Unzip cmdline-tools falhou"; exit 1; }
-          mv /tmp/sdktmp/cmdline-tools "$ANDROID_HOME/cmdline-tools/latest"
-          rm -rf /tmp/sdktmp /tmp/cmdtools.zip
-          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
-          echo "PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH" >> "$GITHUB_ENV"
-          # licencas pre-criadas (hashes estandares do SDK) + fallback com log
-          mkdir -p "$ANDROID_HOME/licenses"
-          printf '24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e\n8933bad161af4178b1185d1a37fbf41ea5269c55\n' > "$ANDROID_HOME/licenses/android-sdk-license"
-          printf '84831b9409646a918e30573bab4c9c91346d8abd\n' > "$ANDROID_HOME/licenses/android-sdk-preview-license"
-          SM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          # sem pipefail: o 'yes' morre com SIGPIPE(141) e falsificaria a exit code
-          set +o pipefail
-          rc=0
-          yes | "$SM" --licenses > sdk-licenses.log 2>&1 || rc=$?
-          set -o pipefail
-          if [ "$rc" -ne 0 ]; then
-            echo "::error file=.github/workflows/android-build.yml::sdkmanager --licenses falhou (rc=$rc) :: $(tail -c 1500 sdk-licenses.log | tr '\n' '|')"
+          # runner ubuntu-latest ja vem com SDK em ANDROID_SDK_ROOT — usamos ele
+          # (definir ANDROID_HOME com outro path faz o AGP falhar: "duas localizacoes")
+          SDKROOT="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
+          echo "SDK em: $SDKROOT"
+          ls "$SDKROOT" | head -5
+          SM=$(find "$SDKROOT/cmdline-tools" -name sdkmanager -type f -print -quit 2>/dev/null || true)
+          if [ -z "$SM" ]; then
+            echo "::error file=.github/workflows/android-build.yml::sdkmanager nao encontrado em $SDKROOT/cmdline-tools"
             exit 1
           fi
+          echo "SM=$SM" >> "$GITHUB_ENV"
+          echo "SDKROOT=$SDKROOT" >> "$GITHUB_ENV"
 
       - name: Componentes SDK
         run: |
           set -o pipefail
-          SM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          "$SM" --verbose "platforms;android-35" "build-tools;35.0.0" \
-            "ndk;$NDK_VERSION" "cmake;3.22.1" 2>&1 | tee sdkmanager.log | tail -20 || { echo "::error file=.github/workflows/android-build.yml::sdkmanager componentes falhou :: $(grep -m3 -i 'error\|fail' sdkmanager.log | tr '\n' '|')"; exit 1; }
+          rc=0
+          yes | "$SM" --licenses > sdk-licenses.log 2>&1 || rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo "::error file=.github/workflows/android-build.yml::sdkmanager --licenses falhou (rc=$rc) :: $(tail -c 1500 sdk-licenses.log | tr '\n' '|')"
+            exit 1
+          fi
+          "$SM" "platforms;android-35" "build-tools;35.0.0" "ndk;$NDK_VERSION" "cmake;3.22.1" > sdkmanager.log 2>&1 \
+            || { echo "::error file=.github/workflows/android-build.yml::sdkmanager componentes falhou :: $(tail -c 2000 sdkmanager.log | tr '\n' '|')"; exit 1; }
+          echo "componentes ok"
 
       - name: Injeta runtimes e rootfs no projeto
         run: |

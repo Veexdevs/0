@@ -295,15 +295,23 @@ jobs:
           java-version: '17'
 
       - name: Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          cmdline-tools-version: 11076708
+        run: |
+          set -o pipefail
+          export ANDROID_HOME="${{ github.workspace }}/android-sdk"
+          mkdir -p "$ANDROID_HOME/cmdline-tools"
+          curl -fSL --retry 3 -o /tmp/cmdtools.zip "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" || { echo "::error file=.github/workflows/android-build.yml::Download cmdline-tools falhou"; exit 1; }
+          unzip -q /tmp/cmdtools.zip -d /tmp/sdktmp || { echo "::error file=.github/workflows/android-build.yml::Unzip cmdline-tools falhou"; exit 1; }
+          mv /tmp/sdktmp/cmdline-tools "$ANDROID_HOME/cmdline-tools/latest"
+          rm -rf /tmp/sdktmp /tmp/cmdtools.zip
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH" >> "$GITHUB_ENV"
+          yes | sdkmanager --licenses > /dev/null 2>&1 || { echo "::error file=.github/workflows/android-build.yml::Aceitar licencas SDK falhou"; exit 1; }
 
       - name: Componentes SDK
         run: |
-          yes | sdkmanager --licenses > /dev/null
-          sdkmanager "platforms;android-35" "build-tools;35.0.0" \
-            "ndk;$NDK_VERSION" "cmake;3.22.1"
+          set -o pipefail
+          sdkmanager --verbose "platforms;android-35" "build-tools;35.0.0" \
+            "ndk;$NDK_VERSION" "cmake;3.22.1" 2>&1 | tee sdkmanager.log | tail -20 || { echo "::error file=.github/workflows/android-build.yml::sdkmanager componentes falhou :: $(grep -m3 -i 'error\|fail' sdkmanager.log | tr '\n' '|')"; exit 1; }
 
       - name: Injeta runtimes e rootfs no projeto
         run: |

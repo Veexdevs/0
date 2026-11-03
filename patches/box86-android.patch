@@ -123,10 +123,10 @@ index 0000000..f158a69
 +#endif
 diff --git a/src/emu/x86sysnr_compat.h b/src/emu/x86sysnr_compat.h
 new file mode 100644
-index 0000000..e844ef3
+index 0000000..acb8a43
 --- /dev/null
 +++ b/src/emu/x86sysnr_compat.h
-@@ -0,0 +1,72 @@
+@@ -0,0 +1,80 @@
 +/* NovaWin compat: numeros de syscall x86 32-bits ausentes em hosts que nao
 + * sao i386 (x86-64/ARM32/ARM64, Linux ou Android/bionic).
 + * Os valores sao os oficiais da tabela i386 — sao usados como IDs de
@@ -198,6 +198,14 @@ index 0000000..e844ef3
 +#define stat64 stat
 +#define lstat64 lstat
 +#define fstat64 fstat
++#endif
++
++/* variantes float C99 ausentes/incompletas no bionic (NDK):
++ * isnanf existe no bionic (declarar de novo e compativel);
++ * isinff NAO existe no bionic — implementado em x86sysnr_compat.c */
++#if defined(__ANDROID__) || defined(TERMUX)
++int isnanf(float);
++int isinff(float);
 +#endif
 diff --git a/src/libtools/myalignsys64.c b/src/libtools/myalignsys64.c
 index 0e6e2d1..3df17f8 100644

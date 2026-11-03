@@ -123,10 +123,10 @@ index 0000000..f158a69
 +#endif
 diff --git a/src/emu/x86sysnr_compat.h b/src/emu/x86sysnr_compat.h
 new file mode 100644
-index 0000000..ccb85f6
+index 0000000..e5073b2
 --- /dev/null
 +++ b/src/emu/x86sysnr_compat.h
-@@ -0,0 +1,81 @@
+@@ -0,0 +1,96 @@
 +/* NovaWin compat: numeros de syscall x86 32-bits ausentes em hosts que nao
 + * sao i386 (x86-64/ARM32/ARM64, Linux ou Android/bionic).
 + * Os valores sao os oficiais da tabela i386 — sao usados como IDs de
@@ -207,6 +207,21 @@ index 0000000..ccb85f6
 +// (declaracoes C nao podem aparecer em arquivos .S: o -include vale p/ tudo)
 +int isnanf(float);
 +int isinff(float);
++#endif
++
++/* constantes ELF ausentes no <elf.h> do bionic (presentes no glibc) —
++ * usadas na tabela de dump de seccoes (elfload_dump.c) */
++#ifndef SHT_CHECKSUM
++#define SHT_CHECKSUM 2024
++#endif
++#ifndef SHT_LOSUNW
++#define SHT_LOSUNW 0x6FFFFD00
++#endif
++#ifndef SHT_SUNW_COMDAT
++#define SHT_SUNW_COMDAT 0x6FFFFEA1
++#endif
++#ifndef SHT_SUNW_syminfo
++#define SHT_SUNW_syminfo 0x6FFFFEF5
 +#endif
 diff --git a/src/libtools/myalignsys64.c b/src/libtools/myalignsys64.c
 index 0e6e2d1..3df17f8 100644

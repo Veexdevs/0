@@ -1,19 +1,19 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 4d0c8a9..ac545b3 100755
+index 4d0c8a9..ba09dcf 100755
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
 @@ -321,6 +321,9 @@ include_directories(
      "${BOX86_ROOT}/src/wrapped/generated"
  )
  
-+# NovaWin: compat de numeros de syscall x86 32-bits em hosts 64-bits (Android/ARM64)
++# NovaWin: compat de numeros de syscall x86 32-bits em hosts nao-i386
 +add_compile_options(-include emu/x86sysnr_compat.h)
 +
  # git_head.h is a generated file
  set_source_files_properties(
      "${BOX86_ROOT}/src/git_head.h"
 diff --git a/src/emu/x86syscall.c b/src/emu/x86syscall.c
-index 5e33bf5..b2db1f2 100755
+index 5e33bf5..86a2ed0 100755
 --- a/src/emu/x86syscall.c
 +++ b/src/emu/x86syscall.c
 @@ -22,6 +22,7 @@
@@ -30,12 +30,12 @@ index 5e33bf5..b2db1f2 100755
          case 195:   // stat64
 -            {   
 +            {
-+#ifdef __i386__
-                 struct stat64 st;
-                 unsigned int r = syscall(__NR_stat64, R_EBX, &st);
-+#else
++#if defined(__aarch64__) || defined(__x86_64__)
 +                struct stat st;
 +                unsigned int r = (unsigned int)stat((const char*)R_EBX, &st);
++#else
+                 struct stat64 st;
+                 unsigned int r = syscall(__NR_stat64, R_EBX, &st);
 +#endif
                  UnalignSysStat64(&st, (void*)R_ECX);
                  
@@ -46,12 +46,12 @@ index 5e33bf5..b2db1f2 100755
          case 196:   // lstat64
 -            {   
 +            {
-+#ifdef __i386__
-                 struct stat64 st;
-                 unsigned int r = syscall(__NR_lstat64, R_EBX, &st);
-+#else
++#if defined(__aarch64__) || defined(__x86_64__)
 +                struct stat st;
 +                unsigned int r = (unsigned int)lstat((const char*)R_EBX, &st);
++#else
+                 struct stat64 st;
+                 unsigned int r = syscall(__NR_lstat64, R_EBX, &st);
 +#endif
                  UnalignSysStat64(&st, (void*)R_ECX);
                  
@@ -62,25 +62,26 @@ index 5e33bf5..b2db1f2 100755
          case 197:   // fstat64
 -            {   
 +            {
-+#ifdef __i386__
-                 struct stat64 st;
-                 unsigned int r = syscall(__NR_fstat64, R_EBX, &st);
-+#else
++#if defined(__aarch64__) || defined(__x86_64__)
 +                struct stat st;
 +                unsigned int r = (unsigned int)fstat(R_EBX, &st);
++#else
+                 struct stat64 st;
+                 unsigned int r = syscall(__NR_fstat64, R_EBX, &st);
 +#endif
                  UnalignSysStat64(&st, (void*)R_ECX);
                  
                  R_EAX = r;
 diff --git a/src/emu/x86sysnr_compat.h b/src/emu/x86sysnr_compat.h
 new file mode 100644
-index 0000000..ee7fc2f
+index 0000000..e844ef3
 --- /dev/null
 +++ b/src/emu/x86sysnr_compat.h
-@@ -0,0 +1,70 @@
-+/* Compat: numeros de syscall x86 32-bits ausentes em hosts 64-bits
-+ * (x86-64/ARM64/Android NDK). Valores oficiais da tabela i386. */
-+#pragma once
+@@ -0,0 +1,72 @@
++/* NovaWin compat: numeros de syscall x86 32-bits ausentes em hosts que nao
++ * sao i386 (x86-64/ARM32/ARM64, Linux ou Android/bionic).
++ * Os valores sao os oficiais da tabela i386 — sao usados como IDs de
++ * syscalls do GUEST x86, nao do host. */
 +#ifndef __NR_clone
 +#define __NR_clone 2
 +#endif
@@ -135,29 +136,33 @@ index 0000000..ee7fc2f
 +#ifndef __NR_futex_waitv
 +#define __NR_futex_waitv 449
 +#endif
-+// 13 = rt_sigaction em todos os hosts 64-bits (x86-64/ARM64); em i386 ja e 13 tambem
++// em hosts 64-bits o sigaction do guest e atendido pelo rt_sigaction (n. 13);
++// em i386/ARM32 o __NR_sigaction nativo ja existe e e usado
 +#ifndef __NR_sigaction
 +#define __NR_sigaction 13
 +#endif
 +
-+/* bionic (Android) nao tem stat64()/lstat64()/fstat64() nem struct stat64;
-+ * em aarch64 o stat nativo ja e 64-bits com layout equivalente.
++/* bionic aarch64 nao tem stat64()/lstat64()/fstat64() nem struct stat64;
++ * a la o stat nativo ja e 64-bits. (Em i386/ARM32 o stat64 existe.)
 + * O #define substitui tambem a tag 'struct stat64' -> 'struct stat'. */
-+#if defined(__ANDROID__)
++#if defined(__ANDROID__) && defined(__aarch64__)
 +#define stat64 stat
 +#define lstat64 lstat
 +#define fstat64 fstat
 +#endif
 diff --git a/src/libtools/myalignsys64.c b/src/libtools/myalignsys64.c
-index 0e6e2d1..5812594 100644
+index 0e6e2d1..3df17f8 100644
 --- a/src/libtools/myalignsys64.c
 +++ b/src/libtools/myalignsys64.c
-@@ -18,13 +18,13 @@
+@@ -18,13 +18,17 @@
  void UnalignSysStat64(const void* source, void* dest)
  {
      struct i386_stat64 *i386st = (struct i386_stat64*)dest;
--    struct stat64 *st = (struct stat64*) source;
++#if defined(__aarch64__) || defined(__x86_64__)
 +    struct stat *st = (struct stat*) source;
++#else
+     struct stat64 *st = (struct stat64*) source;
++#endif
      
      i386st->__pad0 = 0;
  	i386st->__pad3 = 0;

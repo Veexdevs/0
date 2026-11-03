@@ -312,8 +312,8 @@ jobs:
           SM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           # sem pipefail: o 'yes' morre com SIGPIPE(141) e falsificaria a exit code
           set +o pipefail
-          yes | "$SM" --licenses > sdk-licenses.log 2>&1
-          rc=$?
+          rc=0
+          yes | "$SM" --licenses > sdk-licenses.log 2>&1 || rc=$?
           set -o pipefail
           if [ "$rc" -ne 0 ]; then
             echo "::error file=.github/workflows/android-build.yml::sdkmanager --licenses falhou (rc=$rc) :: $(tail -c 1500 sdk-licenses.log | tr '\n' '|')"
@@ -347,8 +347,8 @@ jobs:
 
       - name: Build do APK
         run: |
-          ./gradlew assembleDebug --no-daemon --stacktrace > gradle-build.log 2>&1
-          rc=$?
+          rc=0
+          ./gradlew assembleDebug --no-daemon --stacktrace > gradle-build.log 2>&1 || rc=$?
           if [ "$rc" -ne 0 ]; then
             echo "::error file=.github/workflows/android-build.yml::Gradle assembleDebug falhou (rc=$rc) :: $(grep -m2 -A12 'FAILURE\|error:' gradle-build.log | tr '\n' '|' | head -c 2500)"
             exit 1

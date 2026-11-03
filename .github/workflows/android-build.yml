@@ -315,7 +315,10 @@ jobs:
           yes | "$SM" --licenses > sdk-licenses.log 2>&1
           rc=$?
           set -o pipefail
-          [ "$rc" -ne 0 ] && { echo "::error file=.github/workflows/android-build.yml::sdkmanager --licenses falhou (rc=$rc) :: $(tail -c 1500 sdk-licenses.log | tr '\n' '|')"; exit 1; }
+          if [ "$rc" -ne 0 ]; then
+            echo "::error file=.github/workflows/android-build.yml::sdkmanager --licenses falhou (rc=$rc) :: $(tail -c 1500 sdk-licenses.log | tr '\n' '|')"
+            exit 1
+          fi
 
       - name: Componentes SDK
         run: |

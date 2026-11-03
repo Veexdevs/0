@@ -65,7 +65,7 @@ jobs:
             -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 \
             -DCMAKE_BUILD_TYPE=Release -DANDROID=ON -DARM_DYNAREC=ON -DNOGIT=ON -DCI=ON \
             2>&1 | tee box64-cfg.log || { echo "::error file=.github/workflows/android-build.yml::Box64 configure falhou (veja box64-cfg.log)"; tail -60 box64-cfg.log; tail -40 box64/build/CMakeFiles/CMakeError.log 2>/dev/null; exit 1; }
-          cmake --build box64/build --parallel 2>&1 | tee box64-build.log || { echo "::error file=.github/workflows/android-build.yml::Box64 build falhou (veja box64-build.log)"; tail -80 box64-build.log; exit 1; }
+          cmake --build box64/build --parallel 2>&1 | tee box64-build.log || { tail -60 box64-build.log | head -c 3000 > /tmp/e.txt; echo "::error file=.github/workflows/android-build.yml::Box64 build falhou:"; cat /tmp/e.txt; exit 1; }
           mkdir -p runtimes/bin
           cp box64/build/box64 runtimes/bin/box64
 
@@ -75,12 +75,14 @@ jobs:
         run: |
           set -o pipefail
           git clone --depth 1 --branch "$BOX86_REF" https://github.com/ptitSeb/box86
+          # patch compat: numeros de syscall x86 32-bits + struct stat64 ausentes em hosts 64-bits
+          patch -p1 -d box86 < patches/box86-android-64host.patch || { echo "::error file=.github/workflows/android-build.yml::Box86 patch de compatibilidade falhou"; exit 1; }
           cmake -S box86 -B box86/build -G Ninja \
             -DCMAKE_TOOLCHAIN_FILE="$NDK_ROOT/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 \
             -DCMAKE_BUILD_TYPE=Release -DANDROID=ON -DARM_DYNAREC=ON -DNOGIT=ON \
             2>&1 | tee box86-cfg.log || { echo "::error file=.github/workflows/android-build.yml::Box86 configure falhou"; tail -60 box86-cfg.log; tail -40 box86/build/CMakeFiles/CMakeError.log 2>/dev/null; exit 1; }
-          cmake --build box86/build --parallel 2>&1 | tee box86-build.log || { echo "::error file=.github/workflows/android-build.yml::Box86 build falhou"; tail -80 box86-build.log; exit 1; }
+          cmake --build box86/build --parallel 2>&1 | tee box86-build.log || { tail -60 box86-build.log | head -c 3000 > /tmp/e.txt; echo "::error file=.github/workflows/android-build.yml::Box86 build falhou:"; cat /tmp/e.txt; exit 1; }
           mkdir -p runtimes/bin
           cp box86/build/box86 runtimes/bin/box86
 
@@ -95,7 +97,7 @@ jobs:
             -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 \
             -DCMAKE_BUILD_TYPE=Release -DSDL_SHARED=ON -DSDL_STATIC=OFF \
             2>&1 | tee sdl2-cfg.log || { echo "::error file=.github/workflows/android-build.yml::SDL2 configure falhou"; tail -60 sdl2-cfg.log; exit 1; }
-          cmake --build sdl2/build --parallel 2>&1 | tee sdl2-build.log || { echo "::error file=.github/workflows/android-build.yml::SDL2 build falhou"; tail -80 sdl2-build.log; exit 1; }
+          cmake --build sdl2/build --parallel 2>&1 | tee sdl2-build.log || { tail -60 sdl2-build.log | head -c 3000 > /tmp/e.txt; echo "::error file=.github/workflows/android-build.yml::SDL2 build falhou:"; cat /tmp/e.txt; exit 1; }
           mkdir -p runtimes/sdl2/lib/arm64-v8a runtimes/sdl2/include
           cp sdl2/build/libSDL2.so runtimes/sdl2/lib/arm64-v8a/
           cp sdl2/include/*.h runtimes/sdl2/include/
@@ -114,7 +116,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DSDL2TTF_SAMPLES=OFF -DSDL2TTF_VENDORED=ON \
             2>&1 | tee sdl2ttf-cfg.log || { echo "::error file=.github/workflows/android-build.yml::SDL2_ttf configure falhou"; tail -60 sdl2ttf-cfg.log; exit 1; }
-          cmake --build sdl2ttf/build --parallel 2>&1 | tee sdl2ttf-build.log || { echo "::error file=.github/workflows/android-build.yml::SDL2_ttf build falhou"; tail -80 sdl2ttf-build.log; exit 1; }
+          cmake --build sdl2ttf/build --parallel 2>&1 | tee sdl2ttf-build.log || { tail -60 sdl2ttf-build.log | head -c 3000 > /tmp/e.txt; echo "::error file=.github/workflows/android-build.yml::SDL2_ttf build falhou:"; cat /tmp/e.txt; exit 1; }
           cp sdl2ttf/build/libSDL2_ttf.so runtimes/sdl2/lib/arm64-v8a/
           cp sdl2ttf/SDL_ttf.h runtimes/sdl2/include/SDL_ttf.h 2>/dev/null \
             || cp sdl2ttf/SDL2_ttf.h runtimes/sdl2/include/SDL_ttf.h

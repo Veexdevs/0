@@ -294,17 +294,40 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Android SDK (preinstalado no runner)
-        uses: actions/setup-android@v3
-        with:
-          sdk-licenses: |
-            android-sdk-license
-            android-sdk-preview-license
-          packages: |
-            platforms;android-35
-            build-tools;35.0.0
-            ndk;27.1.12297006
-            cmake;3.22.1
+      - name: Android SDK
+        run: |
+          SDKROOT="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
+          echo "== SDK em $SDKROOT"
+          ls "$SDKROOT" | head -10
+          SM=$(find "$SDKROOT/cmdline-tools" -name sdkmanager -type f -print -quit 2>/dev/null || true)
+          if [ -z "$SM" ]; then
+            echo "== sdkmanager nao existe no SDK preinstalado; baixando cmdline-tools"
+            curl -fsSL -o /tmp/cmdtools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            unzip -q /tmp/cmdtools.zip -d /tmp/cmdtools
+            mkdir -p "$SDKROOT/cmdline-tools/latest"
+            cp -r /tmp/cmdtools/cmdline-tools/* "$SDKROOT/cmdline-tools/latest/"
+            SM="$SDKROOT/cmdline-tools/latest/bin/sdkmanager"
+          fi
+          echo "== sdkmanager: $SM"
+          "$SM" --version
+          echo "SM=$SM" >> "$GITHUB_ENV"
+
+      - name: Componentes SDK
+        run: |
+          echo "== aceitando licencas"
+          yes | "$SM" --licenses || echo "licencas rc=$? (se ja aceitas, ok)"
+          for PKG in "platforms;android-35" "build-tools;35.0.0" "ndk;$NDK_VERSION" "cmake;3.22.1"; do
+            LOG="sdk-$(echo "$PKG" | tr -d '; ')"
+            echo "== instalando $PKG"
+            rc=0
+            "$SM" "$PKG" > "$LOG.log" 2>&1 || rc=$?
+            if [ "$rc" -ne 0 ]; then
+              echo "::error file=.github/workflows/android-build.yml::instalacao de $PKG falhou (rc=$rc) :: $(tail -c 2000 "$LOG.log" | tr '\n' '|')"
+              exit 1
+            fi
+            tail -3 "$LOG.log"
+          done
+          echo "== todos os componentes ok"
 
       - name: Injeta runtimes e rootfs no projeto
         run: |

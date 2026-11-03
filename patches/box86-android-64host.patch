@@ -74,10 +74,10 @@ index 5e33bf5..b2db1f2 100755
                  R_EAX = r;
 diff --git a/src/emu/x86sysnr_compat.h b/src/emu/x86sysnr_compat.h
 new file mode 100644
-index 0000000..5c3a193
+index 0000000..ee7fc2f
 --- /dev/null
 +++ b/src/emu/x86sysnr_compat.h
-@@ -0,0 +1,61 @@
+@@ -0,0 +1,70 @@
 +/* Compat: numeros de syscall x86 32-bits ausentes em hosts 64-bits
 + * (x86-64/ARM64/Android NDK). Valores oficiais da tabela i386. */
 +#pragma once
@@ -138,6 +138,15 @@ index 0000000..5c3a193
 +// 13 = rt_sigaction em todos os hosts 64-bits (x86-64/ARM64); em i386 ja e 13 tambem
 +#ifndef __NR_sigaction
 +#define __NR_sigaction 13
++#endif
++
++/* bionic (Android) nao tem stat64()/lstat64()/fstat64() nem struct stat64;
++ * em aarch64 o stat nativo ja e 64-bits com layout equivalente.
++ * O #define substitui tambem a tag 'struct stat64' -> 'struct stat'. */
++#if defined(__ANDROID__)
++#define stat64 stat
++#define lstat64 lstat
++#define fstat64 fstat
 +#endif
 diff --git a/src/libtools/myalignsys64.c b/src/libtools/myalignsys64.c
 index 0e6e2d1..5812594 100644

@@ -145,7 +145,7 @@ jobs:
           ls -laR runtimes
 
       - name: Logs (diagnostico)
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: runtimes-logs
@@ -296,28 +296,38 @@ jobs:
 
       - name: Android SDK
         run: |
-          set -o pipefail
-          export ANDROID_HOME="${{ github.workspace }}/android-sdk"
-          mkdir -p "$ANDROID_HOME/cmdline-tools"
-          curl -fSL --retry 3 -o /tmp/cmdtools.zip "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" || { echo "::error file=.github/workflows/android-build.yml::Download cmdline-tools falhou"; exit 1; }
-          unzip -q /tmp/cmdtools.zip -d /tmp/sdktmp || { echo "::error file=.github/workflows/android-build.yml::Unzip cmdline-tools falhou"; exit 1; }
-          mv /tmp/sdktmp/cmdline-tools "$ANDROID_HOME/cmdline-tools/latest"
-          rm -rf /tmp/sdktmp /tmp/cmdtools.zip
-          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
-          echo "PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH" >> "$GITHUB_ENV"
-          # licencas pre-criadas (hashes estandares do SDK) + fallback com log
-          mkdir -p "$ANDROID_HOME/licenses"
-          printf '24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e\n8933bad161af4178b1185d1a37fbf41ea5269c55\n' > "$ANDROID_HOME/licenses/android-sdk-license"
-          printf '84831b9409646a918e30573bab4c9c91346d8abd\n' > "$ANDROID_HOME/licenses/android-sdk-preview-license"
-          SM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          yes | "$SM" --licenses > sdk-licenses.log 2>&1 || { echo "::error file=.github/workflows/android-build.yml::sdkmanager --licenses falhou :: $(tail -c 1500 sdk-licenses.log | tr '\n' '|')"; exit 1; }
+          SDKROOT="${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}"
+          echo "== SDK em $SDKROOT"
+          ls "$SDKROOT" | head -10
+          SM=$(find "$SDKROOT/cmdline-tools" -name sdkmanager -type f -print -quit 2>/dev/null || true)
+          if [ -z "$SM" ]; then
+            echo "== sdkmanager nao existe no SDK preinstalado; baixando cmdline-tools"
+            curl -fsSL -o /tmp/cmdtools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+            unzip -q /tmp/cmdtools.zip -d /tmp/cmdtools
+            mkdir -p "$SDKROOT/cmdline-tools/latest"
+            cp -r /tmp/cmdtools/cmdline-tools/* "$SDKROOT/cmdline-tools/latest/"
+            SM="$SDKROOT/cmdline-tools/latest/bin/sdkmanager"
+          fi
+          echo "== sdkmanager: $SM"
+          "$SM" --version
+          echo "SM=$SM" >> "$GITHUB_ENV"
 
       - name: Componentes SDK
         run: |
-          set -o pipefail
-          SM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          "$SM" --verbose "platforms;android-35" "build-tools;35.0.0" \
-            "ndk;$NDK_VERSION" "cmake;3.22.1" 2>&1 | tee sdkmanager.log | tail -20 || { echo "::error file=.github/workflows/android-build.yml::sdkmanager componentes falhou :: $(grep -m3 -i 'error\|fail' sdkmanager.log | tr '\n' '|')"; exit 1; }
+          echo "== aceitando licencas"
+          yes | "$SM" --licenses || echo "licencas rc=$? (se ja aceitas, ok)"
+          for PKG in "platforms;android-35" "build-tools;35.0.0" "ndk;$NDK_VERSION" "cmake;3.22.1"; do
+            LOG="sdk-$(echo "$PKG" | tr -d '; ')"
+            echo "== instalando $PKG"
+            rc=0
+            "$SM" "$PKG" > "$LOG.log" 2>&1 || rc=$?
+            if [ "$rc" -ne 0 ]; then
+              echo "::error file=.github/workflows/android-build.yml::instalacao de $PKG falhou (rc=$rc) :: $(tail -c 2000 "$LOG.log" | tr '\n' '|')"
+              exit 1
+            fi
+            tail -3 "$LOG.log"
+          done
+          echo "== todos os componentes ok"
 
       - name: Injeta runtimes e rootfs no projeto
         run: |
@@ -334,19 +344,43 @@ jobs:
           cp runtimes/sdl2/lib/arm64-v8a/libSDL2.so app/src/main/jniLibs/arm64-v8a/
           cp runtimes/sdl2/lib/arm64-v8a/libSDL2_ttf.so app/src/main/jniLibs/arm64-v8a/
           ls -la app/src/main/assets
+          # libera ~700MB+ apos copiar o rootfs para os assets
+          rm -rf rootfs-artifact
 
       - name: Build do APK
         run: |
-          ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee gradle-build.log | tail -30 || { echo "::error file=.github/workflows/android-build.yml::Gradle assembleDebug falhou :: $(grep -m1 -B2 -A15 'FAILURE\|error:' gradle-build.log | tr '\n' '|' | head -c 3000)"; exit 1; }
+          rc=0
+          ./gradlew assembleDebug --no-daemon --stacktrace > gradle-build.log 2>&1 || rc=$?
+          if [ "$rc" -ne 0 ]; then
+            KERR=$(grep -m10 -E '^e: |^w: ' gradle-build.log | tr '\n' '|' | head -c 2200)
+            FBLK=$(grep -m2 -A12 'FAILURE' gradle-build.log | tr '\n' '|' | head -c 800)
+            echo "::error file=.github/workflows/android-build.yml::Gradle falhou (rc=$rc) KOTLIN: $KERR GRADLE: $FBLK"
+            exit 1
+          fi
+          APK=$(find app/build/outputs -name "*.apk" -type f -print -quit 2>/dev/null || true)
+          if [ -z "$APK" ]; then
+            echo "::error file=.github/workflows/android-build.yml::Gradle terminou 0 mas NAO gerou APK :: $(tail -c 2500 gradle-build.log | tr '\n' '|')"
+            exit 1
+          fi
+          echo "APK gerado: $APK"
 
       - name: Nomeia e publica artefato
         run: |
-          cp app/build/outputs/apk/debug/app-debug.apk NovaWin.apk
+          set -o pipefail
+          # localiza o apk em qualquer subpasta de outputs (nome pode variar)
+          # -print -quit evita pipe (find|head gera SIGPIPE=141 sob pipefail+errexit)
+          APK=$(find app/build/outputs -name "*.apk" -type f -print -quit 2>/dev/null || true)
+          if [ -z "$APK" ]; then
+            echo "::error file=.github/workflows/android-build.yml::Nenhum APK em app/build/outputs :: $(find app/build -name '*.apk' 2>/dev/null | tr '\n' '|') DISK=$(df -h . | tail -1 | tr -s ' ')"
+            exit 1
+          fi
+          echo "APK encontrado: $APK"
+          cp "$APK" NovaWin.apk || { echo "::error file=.github/workflows/android-build.yml::cp do APK falhou :: DISK=$(df -h . | tail -1 | tr -s ' ')"; exit 1; }
           ls -la NovaWin.apk
           sha256sum NovaWin.apk > NovaWin.apk.sha256
 
       - name: Logs (diagnostico)
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: app-logs

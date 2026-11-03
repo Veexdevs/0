@@ -6,6 +6,8 @@
          diretório privado do app; arquivos do usuário são acessados via SAF
          (Storage Access Framework), mecanismo oficial do Android. -->
 
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <uses-feature
         android:glEsVersion="0x00020000"
         android:required="true" />
@@ -38,7 +40,9 @@
             android:name=".desktop.NovaWinDesktopActivity"
             android:exported="false"
             android:launchMode="singleTask"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|screenLayout|uiMode|locale|density"
+            android:alwaysRetainTaskState="true"
+            android:preferMinimalPostProcessing="true"
+            android:configChanges="layoutDirection|locale|orientation|uiMode|screenLayout|screenSize|smallestScreenSize|keyboard|keyboardHidden|navigation"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="stateHidden|adjustResize"
             android:theme="@style/Theme.NovaWin.Desktop" />

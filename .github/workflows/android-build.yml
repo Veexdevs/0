@@ -89,10 +89,11 @@ jobs:
           git clone --depth 1 --branch "$BOX86_REF" https://github.com/ptitSeb/box86
           # patch compat: numeros de syscall x86 32-bits + struct stat64 ausentes em hosts 64-bits
           patch -p1 -d box86 < patches/box86-android-64host.patch || { echo "::error file=.github/workflows/android-build.yml::Box86 patch de compatibilidade falhou"; exit 1; }
+          # SEM ARM_DYNAREC: box86 nao tem dynarec aarch64 (so ARM32/x86-64) -> build interpreter-only
           cmake -S box86 -B box86/build -G Ninja \
             -DCMAKE_TOOLCHAIN_FILE="$NDK_ROOT/build/cmake/android.toolchain.cmake" \
             -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-29 \
-            -DCMAKE_BUILD_TYPE=Release -DANDROID=ON -DARM_DYNAREC=ON -DNOGIT=ON \
+            -DCMAKE_BUILD_TYPE=Release -DANDROID=ON -DNOGIT=ON \
             2>&1 | tee box86-cfg.log || { echo "::error file=.github/workflows/android-build.yml::Box86 configure falhou :: $(tail -c 2500 box86-cfg.log | tr '\n' '|')"; exit 1; }
           cmake --build box86/build --parallel 2>&1 | tee box86-build.log || { echo "::error file=.github/workflows/android-build.yml::Box86 build falhou :: $(tail -c 3000 box86-build.log | tr '\n' '|')"; exit 1; }
           mkdir -p runtimes/bin
@@ -196,7 +197,7 @@ jobs:
             if wget -qO /usr/share/keyrings/winehq-archive.key \
                    https://dl.winehq.org/wine-builds/winehq.key; then
               apt-get update || WINE_OK=0
-              apt-get install -y --install-recommends wine-stable || WINE_OK=0
+              apt-get install -y --no-install-recommends wine-stable || WINE_OK=0
             fi
             if [ "$WINE_OK" != "1" ] || [ ! -x /usr/bin/wine64 ]; then
               echo ">> WineHQ falhou; usando wine do Debian"

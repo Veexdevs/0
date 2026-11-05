@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -92,7 +93,8 @@ fun ImportScreen(store: Store, nav: (Screen) -> Unit, back: () -> Unit) {
             val appsDir = store.envAppsDir(env)
             val final = File(appsDir, name)
             if (!dest.renameTo(final)) {
-                if (!dest.copyTo(final, overwrite = true)) {
+                val copiou = try { dest.copyTo(final, overwrite = true); true } catch (_: Exception) { false }
+                if (!copiou) {
                     errorText = "Falha ao mover o arquivo para o ambiente"
                     errorDetail = "Verifique o espaço livre em armazenamento."
                     step = Step.ERROR

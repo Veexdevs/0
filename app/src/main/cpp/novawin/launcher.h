@@ -27,7 +27,7 @@ struct GuestEnv {
     std::string boxPath() const { return arch == 1 ? box86Path(rootfs) : box64Path(rootfs); }
 };
 
-// fork + setsid + execvpe (cria novo group de processo para poder encerrar tudo)
+// fork + setsid + execve (cria novo group de processo para poder encerrar tudo)
 pid_t execGuest(const std::string& boxPath, const std::vector<std::string>& argvAfterBox,
                 const GuestEnv& env, const std::string& cwd);
 

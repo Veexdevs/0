@@ -97,7 +97,8 @@ Java_com_novawin_core_Runtime_nativePrepareState(JNIEnv*, jclass) {
 
 JNIEXPORT jint JNICALL
 Java_com_novawin_core_Runtime_nativePrepare(JNIEnv* jni, jclass, jobject assetsJ, jobject cbJ) {
-    AAssetManager* am = reinterpret_cast<AAssetManager*>(jni->GetAAssetManager(assetsJ));
+    // NDK: nao existe JNIEnv::GetAAssetManager — o helper oficial e AAssetManager_fromJava
+    AAssetManager* am = AAssetManager_fromJava(jni, assetsJ);
     jclass cbClass = jni->GetObjectClass(cbJ);
     jmethodID mid = jni->GetMethodID(cbClass, "onProgress", "(JJ)V");
     int rc = Prepare::run(am, [jni, cbJ, mid](long long done, long long total) {

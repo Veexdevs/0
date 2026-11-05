@@ -76,13 +76,14 @@ object Importer {
     ): Boolean {
         try {
             val resolver = context.contentResolver
-            val total = resolver.openAssetFileDescriptor(uri)?.length ?: 0L
+            val total: Long = resolver.openAssetFileDescriptor(uri, "r")?.length ?: 0L
             var done = 0L
-            resolver.openInputStream(uri).use { input ->
+            val input = resolver.openInputStream(uri) ?: return false
+            input.use { stream ->
                 dest.outputStream().use { output ->
                     val buf = ByteArray(128 * 1024)
                     while (true) {
-                        val n = input.read(buf)
+                        val n = stream.read(buf)
                         if (n < 0) break
                         output.write(buf, 0, n)
                         done += n

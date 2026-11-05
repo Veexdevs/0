@@ -352,7 +352,7 @@ jobs:
           rc=0
           ./gradlew assembleDebug --no-daemon --stacktrace > gradle-build.log 2>&1 || rc=$?
           if [ "$rc" -ne 0 ]; then
-            KERR=$(grep -m10 -E '^e: |^w: ' gradle-build.log | tr '\n' '|' | head -c 2200)
+            KERR=$(grep -m40 -E '^e: ' gradle-build.log | tr '\n' '|' | head -c 4000)
             FBLK=$(grep -m2 -A12 'FAILURE' gradle-build.log | tr '\n' '|' | head -c 800)
             echo "::error file=.github/workflows/android-build.yml::Gradle falhou (rc=$rc) KOTLIN: $KERR GRADLE: $FBLK"
             exit 1

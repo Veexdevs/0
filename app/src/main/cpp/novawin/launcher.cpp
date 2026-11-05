@@ -100,7 +100,7 @@ pid_t execGuest(const std::string& boxPath, const std::vector<std::string>& argv
             dup2(devnull, 2);
             if (devnull > 2) close(devnull);
         }
-        execvpe(boxPath.c_str(), argv.data(), envp.data());
+        execve(boxPath.c_str(), argv.data(), envp.data());
         _exit(127);
     }
     return pid;
@@ -136,7 +136,7 @@ int runGuestCaptured(const std::string& boxPath, const std::vector<std::string>&
         dup2(pipefd[1], 2);
         if (devnull >= 0 && devnull > 2) close(devnull);
         close(pipefd[1]);
-        execvpe(boxPath.c_str(), argvp.data(), envp.data());
+        execve(boxPath.c_str(), argvp.data(), envp.data());
         _exit(127);
     }
     close(pipefd[1]);

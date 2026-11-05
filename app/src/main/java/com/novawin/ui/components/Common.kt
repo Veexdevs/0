@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.novawin.ui.theme.*
@@ -31,8 +32,8 @@ import com.novawin.ui.theme.*
 @Composable
 fun NwLogo(size: Dp = 72.dp) {
     Canvas(Modifier.size(size)) {
-        val w = size
-        val corner = size * 0.22f
+        val w = size.toPx()
+        val corner = size.toPx() * 0.22f
         val r = Rect(0f, 0f, w, w)
         drawRoundRect(color = NwSurface, topLeft = Offset(0f, 0f), size = Size(w, w), cornerRadius = CornerRadius(corner))
         drawRoundRect(
@@ -95,7 +96,7 @@ fun NwCard(
     val m = modifier
         .fillMaxWidth()
         .clip(RoundedCornerShape(16.dp))
-        .background(NwCard)
+        .background(com.novawin.ui.theme.NwCard)
         .border(1.dp, NwStroke, RoundedCornerShape(16.dp))
         .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
         .padding(16.dp)
@@ -115,7 +116,7 @@ fun NwActionButton(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(if (enabled) NwCard else NwSurface)
+            .background(if (enabled) com.novawin.ui.theme.NwCard else NwSurface)
             .border(1.dp, if (enabled) NwStroke else Color.Transparent, RoundedCornerShape(16.dp))
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -236,7 +237,7 @@ fun SettingRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(NwCard)
+            .background(com.novawin.ui.theme.NwCard)
             .border(1.dp, NwStroke, RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 13.dp),

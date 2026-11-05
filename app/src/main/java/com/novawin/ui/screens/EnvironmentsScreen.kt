@@ -1,5 +1,6 @@
 package com.novawin.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -30,6 +31,7 @@ import com.novawin.ui.components.TopBar
 import com.novawin.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 @Composable
 fun EnvironmentsScreen(store: Store, nav: (Screen) -> Unit, back: () -> Unit) {
@@ -43,7 +45,9 @@ fun EnvironmentsScreen(store: Store, nav: (Screen) -> Unit, back: () -> Unit) {
     val info = remember { Runtime.info() }
     val wine32 = info.optBoolean("wine32")
 
-    fun refresh() = envs = store.loadEnvironments()
+    fun refresh() {
+        envs = store.loadEnvironments()
+    }
 
     Column(
         modifier = Modifier

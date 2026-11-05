@@ -21,7 +21,22 @@ data class Environment(
     val dirName: String = "",
     val createdAt: Long = System.currentTimeMillis(),
     val prefixReady: Boolean = false
-)
+) {
+    companion object {
+        fun fromJson(o: JSONObject): Environment = Environment(
+            id = o.optString("id"),
+            name = o.optString("name"),
+            arch = o.optInt("arch", Arch.WIN64),
+            resolution = o.optString("resolution", "1280x720"),
+            graphics = o.optString("graphics", "software"),
+            memoryMb = o.optInt("memoryMb", 0),
+            wineVersion = o.optString("wineVersion"),
+            dirName = o.optString("dirName"),
+            createdAt = o.optLong("createdAt"),
+            prefixReady = o.optBoolean("prefixReady")
+        )
+    }
+}
 
 fun Environment.toJson(): JSONObject = JSONObject().apply {
     put("id", id); put("name", name); put("arch", arch)
@@ -30,19 +45,6 @@ fun Environment.toJson(): JSONObject = JSONObject().apply {
     put("dirName", dirName); put("createdAt", createdAt)
     put("prefixReady", prefixReady)
 }
-
-fun Environment.fromJson(o: JSONObject): Environment = Environment(
-    id = o.optString("id"),
-    name = o.optString("name"),
-    arch = o.optInt("arch", Arch.WIN64),
-    resolution = o.optString("resolution", "1280x720"),
-    graphics = o.optString("graphics", "software"),
-    memoryMb = o.optInt("memoryMb", 0),
-    wineVersion = o.optString("wineVersion"),
-    dirName = o.optString("dirName"),
-    createdAt = o.optLong("createdAt"),
-    prefixReady = o.optBoolean("prefixReady")
-)
 
 data class ProgramInfo(
     val id: String,
@@ -53,24 +55,26 @@ data class ProgramInfo(
     val arch: Int = -1, // -1 desconhecido, 32 ou 64
     val addedAt: Long = System.currentTimeMillis(),
     val lastRunAt: Long = 0
-)
+) {
+    companion object {
+        fun fromJson(o: JSONObject): ProgramInfo = ProgramInfo(
+            id = o.optString("id"),
+            envId = o.optString("envId"),
+            name = o.optString("name"),
+            fileName = o.optString("fileName"),
+            size = o.optLong("size"),
+            arch = o.optInt("arch", -1),
+            addedAt = o.optLong("addedAt"),
+            lastRunAt = o.optLong("lastRunAt")
+        )
+    }
+}
 
 fun ProgramInfo.toJson(): JSONObject = JSONObject().apply {
     put("id", id); put("envId", envId); put("name", name)
     put("fileName", fileName); put("size", size)
     put("arch", arch); put("addedAt", addedAt); put("lastRunAt", lastRunAt)
 }
-
-fun ProgramInfo.fromJson(o: JSONObject): ProgramInfo = ProgramInfo(
-    id = o.optString("id"),
-    envId = o.optString("envId"),
-    name = o.optString("name"),
-    fileName = o.optString("fileName"),
-    size = o.optLong("size"),
-    arch = o.optInt("arch", -1),
-    addedAt = o.optLong("addedAt"),
-    lastRunAt = o.optLong("lastRunAt")
-)
 
 data class FileEntry(
     val name: String,

@@ -1,10 +1,13 @@
 package com.novawin.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Description
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -78,12 +81,12 @@ fun ProgramsScreen(store: Store, nav: (Screen) -> Unit, back: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .background(NwCard)
+                    .background(com.novawin.ui.theme.NwCard)
                     .clickable { if (launching == null) launch(p) }
                     .padding(14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.AutoMirrored.Filled.Description, null, tint = NwAccent,
+                Icon(Icons.Default.Description, null, tint = NwAccent,
                     modifier = Modifier.size(26.dp))
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {

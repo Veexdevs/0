@@ -27,7 +27,7 @@ import org.json.JSONObject
 
 @Composable
 fun SettingsScreen(store: Store, nav: (Screen) -> Unit, back: () -> Unit) {
-    val settings by remember { mutableStateOf(store.loadSettings()) }
+    var settings by remember { mutableStateOf(store.loadSettings()) }
     val scope = rememberCoroutineScope()
 
     fun update(key: String, value: Any) {
@@ -155,12 +155,12 @@ fun SettingsScreen(store: Store, nav: (Screen) -> Unit, back: () -> Unit) {
             }
         "renderer" -> NwDialog("Renderizador gráfico", onDismiss = { dialog = null },
             actions = { NwButton("Fechar", { dialog = null }, accent = false) }) {
-                listOf("GLES2 (acelerado)" to "accelerated", "Software" to "software").forEach { (label, val) ->
+                listOf("GLES2 (acelerado)" to "accelerated", "Software" to "software").forEach { (label, v) ->
                     Row(modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { update("renderer", val); dialog = null }
+                        .clickable { update("renderer", v); dialog = null }
                         .padding(vertical = 8.dp)) {
-                        Text(label, color = if (settings.optString("renderer", "accelerated") == val) NwOk else NwTextPrimary,
+                        Text(label, color = if (settings.optString("renderer", "accelerated") == v) NwOk else NwTextPrimary,
                             fontSize = 14.sp)
                     }
                 }

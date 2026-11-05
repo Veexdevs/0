@@ -4,6 +4,7 @@ import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
@@ -55,7 +56,7 @@ class MainActivity : ComponentActivity() {
                 val scale = store.loadSettings().optDouble("uiScale", 1.0).coerceIn(0.8, 1.6)
                 val baseDensity = LocalDensity.current
                 CompositionLocalProvider(
-                    LocalDensity provides Density(density = baseDensity.density * scale)
+                    LocalDensity provides Density(density = baseDensity.density * scale.toFloat())
                 ) {
                     Surface(modifier = Modifier.fillMaxSize()) {
                         AppRoot(store = store)
@@ -103,7 +104,7 @@ object Launcher {
     fun defaultEnv(store: Store): Environment? = store.loadEnvironments().firstOrNull()
 
     /** Inicia o prefixo Wine caso ainda não esteja pronto (bloqueante — em background). */
-    fun ensurePrefix(
+    suspend fun ensurePrefix(
         env: Environment,
         store: Store,
         onLine: (String) -> Unit = {}
@@ -128,7 +129,7 @@ object Launcher {
      * com [exePath] nulo, abre apenas o desktop.
      * Devolve o resultado real (erros vêm do runtime nativo / wine).
      */
-    fun launch(
+    suspend fun launch(
         context: Context,
         store: Store,
         env: Environment,
@@ -195,8 +196,10 @@ object Launcher {
 
     fun deviceRamMb(): Int {
         return try {
+            val am = NovaWinApp.ctx()
+                .getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager ?: return 0
             val info = ActivityManager.MemoryInfo()
-            ActivityManager.getMemoryInfo(NovaWinApp.ctx(), info)
+            am.getMemoryInfo(info)
             (info.totalMem / (1024 * 1024)).toInt()
         } catch (_: Exception) {
             0

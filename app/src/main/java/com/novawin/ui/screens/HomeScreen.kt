@@ -1,13 +1,12 @@
 package com.novawin.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ChevronRight
-import androidx.compose.material.icons.automirrored.filled.Description
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,6 +30,7 @@ import com.novawin.ui.components.*
 import com.novawin.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 @Composable
 fun HomeScreen(store: Store, nav: (Screen) -> Unit) {
@@ -240,7 +240,7 @@ fun HomeScreen(store: Store, nav: (Screen) -> Unit) {
                         .padding(horizontal = 14.dp, vertical = 11.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.AutoMirrored.Filled.Description, null, tint = NwAccent,
+                    Icon(Icons.Default.Description, null, tint = NwAccent,
                         modifier = Modifier.size(22.dp))
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
@@ -251,7 +251,7 @@ fun HomeScreen(store: Store, nav: (Screen) -> Unit) {
                             color = NwTextSecondary, fontSize = 11.5.sp
                         )
                     }
-                    Icon(Icons.AutoMirrored.Filled.ChevronRight, null, tint = NwTextSecondary,
+                    Icon(Icons.Default.ChevronRight, null, tint = NwTextSecondary,
                         modifier = Modifier.size(18.dp))
                 }
                 Spacer(Modifier.height(6.dp))

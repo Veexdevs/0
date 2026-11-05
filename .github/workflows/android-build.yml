@@ -352,9 +352,22 @@ jobs:
           rc=0
           ./gradlew assembleDebug --no-daemon --stacktrace > gradle-build.log 2>&1 || rc=$?
           if [ "$rc" -ne 0 ]; then
-            KERR=$(grep -m40 -E '^e: ' gradle-build.log | tr '\n' '|' | head -c 4000)
-            FBLK=$(grep -m2 -A12 'FAILURE' gradle-build.log | tr '\n' '|' | head -c 800)
-            echo "::error file=.github/workflows/android-build.yml::Gradle falhou (rc=$rc) KOTLIN: $KERR GRADLE: $FBLK"
+            # 1) um resumo curto
+            KERR=$(grep -c -E '^e: ' gradle-build.log || true)
+            FBLK=$(grep -m1 -E '^e: ' gradle-build.log | sed 's|file:///home/runner/work/0/0/app/src/main/java/com/novawin/||' | head -c 400)
+            echo "::error file=.github/workflows/android-build.yml::Gradle falhou (rc=$rc); ${KERR} erro(s) Kotlin; primeiro: $FBLK"
+            # 2) uma anotacao por arquivo (nao trunca a lista inteira)
+            for f in $(grep -oE '/app/src/main/java/com/novawin/[A-Za-z0-9/]+[.]kt' gradle-build.log | sort -u | head -14); do
+              L=$(grep -F "$f:" gradle-build.log | grep -E '^e: ' | sed "s|.*${f}:|L|" | sed 's/|/ /g' | tr '\n' '|' | head -c 900)
+              echo "::error file=${f#/}::${L}"
+            done
+            # 3) se sobrar erro fora de com/novawin (ex.: gerado), mostra o resto
+            OTH=$(grep -E '^e: ' gradle-build.log | grep -v '/com/novawin/' | sed 's|file:///home/runner/work/0/0/||' | tr '\n' '|' | head -c 1500)
+            if [ -n "$OTH" ]; then echo "::error file=.github/workflows/android-build.yml::OUTROS: $OTH"; fi
+            # 4) erro de gradle/cmake/kotlin nao-`e:`
+            if [ "$KERR" = "0" ]; then
+              echo "::error file=.github/workflows/android-build.yml::SEM 'e:': $(grep -m30 -iE 'error|FAILURE|ninja|CMake Error' gradle-build.log | tr '\n' '|' | head -c 3000)"
+            fi
             exit 1
           fi
           APK=$(find app/build/outputs -name "*.apk" -type f -print -quit 2>/dev/null || true)

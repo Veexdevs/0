@@ -3,13 +3,14 @@ package com.novawin.ui.screens
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.FolderOpen
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -96,23 +97,6 @@ fun FileManagerScreen(store: Store, nav: (Screen) -> Unit, back: () -> Unit) {
         }
     }
 
-    val treePicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocumentTree()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            try {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-            } catch (_: Exception) {
-            }
-            androidTree = uri
-            root = RootId.ANDROID
-            reloadAndroid(uri)
-        }
-    }
-
     fun reloadAndroid(uri: Uri) {
         scope.launch(Dispatchers.IO) {
             val list = mutableListOf<com.novawin.core.FileEntry>()
@@ -136,6 +120,23 @@ fun FileManagerScreen(store: Store, nav: (Screen) -> Unit, back: () -> Unit) {
         }
     }
 
+    val treePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (_: Exception) {
+            }
+            androidTree = uri
+            root = RootId.ANDROID
+            reloadAndroid(uri)
+        }
+    }
+
     fun doAction(action: String, entry: com.novawin.core.FileEntry) {
         when (action) {
             "delete" -> scope.launch(Dispatchers.IO) {
@@ -151,6 +152,26 @@ fun FileManagerScreen(store: Store, nav: (Screen) -> Unit, back: () -> Unit) {
                 clipboard = entry.path to false
                 toast = "Selecionado para mover. Toque em uma pasta para colar."
             }
+        }
+    }
+
+    fun pasteTo(entry: com.novawin.core.FileEntry) {
+        val clip = clipboard ?: return
+        if (root == RootId.ANDROID) {
+            toast = "Não é possível colar na pasta do Android (limitação do SAF). Use “Importar para cá”."
+            return
+        }
+        if (!entry.isDirectory) {
+            toast = "Escolha uma pasta de destino."
+            return
+        }
+        val (src, isCopy) = clip
+        scope.launch(Dispatchers.IO) {
+            val dst = "${entry.path}/${src.substringAfterLast('/')}"
+            val rc = if (isCopy) Runtime.fsCopy(src, dst) else Runtime.fsMove(src, dst)
+            toast = if (rc == 0) "Concluído." else "Falha na operação (código $rc)."
+            clipboard = null
+            reload()
         }
     }
 
@@ -175,26 +196,6 @@ fun FileManagerScreen(store: Store, nav: (Screen) -> Unit, back: () -> Unit) {
                     pasteTo(entry)
                 }
             }
-        }
-    }
-
-    fun pasteTo(entry: com.novawin.core.FileEntry) {
-        val clip = clipboard ?: return
-        if (root == RootId.ANDROID) {
-            toast = "Não é possível colar na pasta do Android (limitação do SAF). Use “Importar para cá”."
-            return
-        }
-        if (!entry.isDirectory) {
-            toast = "Escolha uma pasta de destino."
-            return
-        }
-        val (src, isCopy) = clip
-        scope.launch(Dispatchers.IO) {
-            val dst = "${entry.path}/${src.substringAfterLast('/')}"
-            val rc = if (isCopy) Runtime.fsCopy(src, dst) else Runtime.fsMove(src, dst)
-            toast = if (rc == 0) "Concluído." else "Falha na operação (código $rc)."
-            clipboard = null
-            reload()
         }
     }
 
@@ -307,7 +308,7 @@ fun FileManagerScreen(store: Store, nav: (Screen) -> Unit, back: () -> Unit) {
             ToolAction("Importar", Icons.Default.FileUpload) {
                 importPicker.launch(arrayOf("*/*"))
             }
-            ToolAction("Pasta do Android", Icons.AutoMirrored.Filled.FolderOpen) {
+            ToolAction("Pasta do Android", Icons.Default.FolderOpen) {
                 treePicker.launch(null)
             }
         }
@@ -402,7 +403,7 @@ fun FileManagerScreen(store: Store, nav: (Screen) -> Unit, back: () -> Unit) {
 }
 
 @Composable
-private fun ToolAction(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+private fun RowScope.ToolAction(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .weight(1f)
